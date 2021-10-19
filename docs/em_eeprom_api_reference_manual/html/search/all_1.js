@@ -22,6 +22,5 @@ var searchData=
   ['cy_5fem_5feeprom_5fwrite_5ffail',['CY_EM_EEPROM_WRITE_FAIL',['../group__group__em__eeprom__enums.html#gga00cb0e6ed68329cd7aba18e3a93e13d2a76c360c7a3688c44efd2d5ab46814cd3',1,'cy_em_eeprom.h']]],
   ['cy_5fen_5fem_5feeprom_5fstatus_5ft',['cy_en_em_eeprom_status_t',['../group__group__em__eeprom__enums.html#ga00cb0e6ed68329cd7aba18e3a93e13d2',1,'cy_em_eeprom.h']]],
   ['cy_5fstc_5feeprom_5fconfig_5ft',['cy_stc_eeprom_config_t',['../structcy__stc__eeprom__config__t.html',1,'']]],
-  ['cy_5fstc_5feeprom_5fcontext_5ft',['cy_stc_eeprom_context_t',['../structcy__stc__eeprom__context__t.html',1,'']]],
-  ['cypress_20em_5feeprom_20middleware_20library',['Cypress Em_EEPROM Middleware Library',['../index.html',1,'']]]
+  ['cy_5fstc_5feeprom_5fcontext_5ft',['cy_stc_eeprom_context_t',['../structcy__stc__eeprom__context__t.html',1,'']]]
 ];

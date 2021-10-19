@@ -1,6 +1,6 @@
 /*******************************************************************************
 * \file cy_em_eeprom.h
-* \version 2.0
+* \version 2.10
 *
 * \brief
 * This file provides the function prototypes and constants for the
@@ -8,7 +8,8 @@
 *
 ********************************************************************************
 * \copyright
-* Copyright 2017-2019, Cypress Semiconductor Corporation.  All rights reserved.
+* (c) (2017-2021), Cypress Semiconductor Corporation (an Infineon company) or
+* an affiliate of Cypress Semiconductor Corporation. All rights reserved.
 * You may use this file only in accordance with the license, terms, conditions,
 * disclaimers, and limitations in the end user license agreement accompanying
 * the software package with which this file was provided.
@@ -16,12 +17,12 @@
 
 /**
 ********************************************************************************
-* \mainpage Cypress Em_EEPROM Middleware Library
+* \mainpage Em_EEPROM Middleware Library
 *
 * The Emulated EEPROM (Em_EEPROM) middleware emulates an EEPROM storage in
 * PSoC's internal flash memory. The Em_EEPROM middleware operates on the top
-* of the flash driver included in the PSoC 6 Peripheral Driver Library
-* (psoc6pdl).
+* of the flash driver included in the Peripheral Driver Library
+* (mtb-pdl-cat1 or mtb-pdl-cat2).
 *
 * Use the Em_EEPROM to store non-volatile data on a target device when
 * increasing flash memory endurance and restoring corrupted data from
@@ -50,8 +51,8 @@
 *
 * Em_EEPROM operates on the top of the flash driver. The flash driver has
 * some prerequisites for proper operation.
-* Refer to the "Flash (Flash System Routine)" section of the PSoC 6
-* Peripheral Driver Library (psoc6pdl) API Reference Manual.
+* Refer to the "Flash (Flash System Routine)" section of the Peripheral Driver
+* Library API Reference Manual.
 * Also, refer to the \ref section_em_eeprom_miscellaneous section for
 * the different Em_EEPROM middleware restrictions and limitations.
 *
@@ -84,8 +85,8 @@
 * \section section_em_eeprom_quick_start Quick Start Guide
 ********************************************************************************
 *
-* Cypress Em_EEPROM middleware can be used in various Development
-* Environments such as ModusToolbox, MBED, etc. Refer to the
+* Em_EEPROM middleware can be used in various Development
+* Environments such as ModusToolbox, Mbed OS, etc. Refer to the
 * \ref section_em_eeprom_toolchain section.
 *
 * The below steps describe the simplest way of enabling the Em_EEPROM
@@ -95,11 +96,11 @@
 *
 * 2. Add the Em_EEPROM middleware to your project.
 *    This quick start guide assumes that the environment is configured
-*    to use the PSoC 6 Peripheral Driver Library (psoc6pdl) for development
-*    and the PSoC 6 Peripheral Driver Library (psoc6pdl) is included in
+*    to use the Peripheral Driver Library (mtb-pdl-cat1 or mtb-pdl-cat2)
+*    for development and the Peripheral Driver Library is included in
 *    the project. If you are using the ModusToolbox development environment
 *    select the application in the Project Explorer window and navigate to
-*    the Project/ModusToolbox Middleware Selector menu. A window appears,
+*    the Project/ModusToolbox Library Manager menu. A window appears,
 *    check the Emulated EEPROM middleware and click the OK button.
 *
 * 3. Include Em_EEPROM in the main.c file:
@@ -132,6 +133,8 @@
 *
 * 8. Initialize the Em_EEPROM middleware once at the start:
 *    \snippet em_eeprom/sut_001/main.c snippet_eeprom_start
+*    Init function stores in context, the configuration and current state
+*    of EEPROM storage. It is used and updated in subsequent API calls.
 *
 * 9. Now, the Em_EEPROM middleware is ready to use. Call the Write or Read
 *    functions to write or read one byte:
@@ -224,7 +227,7 @@
 * \snippet em_eeprom/sut_001/main.c snippet_configuration_simple
 *
 ********************************************************************************
-* \subsection section_em_eeprom_location Em_EEPROM Location
+* \subsection section_em_eeprom_location Em_EEPROM Storage Variable Location and Size
 ********************************************************************************
 *
 * The user is responsible for allocating space in flash for Em_EEPROM
@@ -328,7 +331,7 @@
 *
 * 1. Build the project to generate linker scripts.
 *
-* 2. Open the linker script "cy8c6xx7_cm4_dual.ld" for the CM4 core
+* 2. Open the linker script "cy8c6xxa_cm4_dual.ld" for the CM4 core
 *    and search the following declaration:
 *    \code
 *      etext =  . ;
@@ -340,6 +343,112 @@
 *      {
 *         KEEP(*(.my_emulated_eeprom))
 *      } > flash
+*    \endcode
+*    where:
+*   * EEPROM Storage Address is an absolute address in flash where
+*     the Em_EEPROM operates. You must define the address value.
+*     Ensure the address is aligned to the size of the device's flash row
+*     and does not overlap with the memory space used by the application.
+*
+*   * my_emulated_eeprom is the name of the section
+*     where the Em_EEPROM storage will be placed. The name can be changed to
+*     any name you choose.
+*
+* 3. Save the changes and close the file.
+*
+* 4. Declare the Em_EEPROM storage in the newly created section. To do this,
+*    declare an array in flash, aligned to the size of the flash row of
+*    the device you are using. An example of such array declaration
+*    is the following:
+*    \code
+*      CY_SECTION(".my_emulated_eeprom")
+*      CY_ALIGN(CY_EM_EEPROM_FLASH_SIZEOF_ROW)
+*      const uint8 emEepromStorage[STORAGE_SIZE];
+*    \endcode
+*
+* 5. After the Em_EEPROM storage is defined, pass the address to
+*    the middleware:
+*    \snippet em_eeprom/sut_001/main.c snippet_eeprom_pass_address
+*
+* 6. Build the project to verify the correctness of the linker control file
+*    modifications.
+*
+********************************************************************************
+* \subsubsection section_em_eeprom_fixed_address_arm Em_EEPROM Storage at a Fixed Address for ARM Compiler
+********************************************************************************
+*
+* 1. Build the project to generate linker scripts.
+*
+* 2. Open the linker script "cy8c6xxa_cm4_dual.sct" for the CM4 core
+*    and search the following declaration:
+*    \code
+*      ; Emulated EEPROM Flash area
+*      LR_EM_EEPROM EM_EEPROM_START EM_EEPROM_SIZE
+*    \endcode
+*    Paste the following code right before the declaration:
+*    \code
+*      #define EM_EEPROM_START_ADDRESS <EEPROM Storage Address>
+*      EM_EEPROM (EM_EEPROM_START_ADDRESS)
+*      {
+*         .my_emulated_eeprom+0
+*         {
+*             *(.my_emulated_eeprom)
+*         }
+*      }
+*    \endcode
+*    where:
+*   * EEPROM Storage Address is an absolute address in flash where
+*     the Em_EEPROM operates. You must define the address value.
+*     Ensure the address is aligned to the size of the device's flash row
+*     and does not overlap with the memory space used by the application.
+*
+*   * my_emulated_eeprom is the name of the section
+*     where the Em_EEPROM storage will be placed. The name can be changed to
+*     any name you choose.
+*
+* 3. Save the changes and close the file.
+*
+* 4. Declare the Em_EEPROM storage in the newly created section. To do this,
+*    declare an array in flash, aligned to the size of the flash row of
+*    the device you are using. An example of such array declaration
+*    is the following:
+*    \code
+*      CY_SECTION(".my_emulated_eeprom")
+*      CY_ALIGN(CY_EM_EEPROM_FLASH_SIZEOF_ROW)
+*      const uint8 emEepromStorage[STORAGE_SIZE];
+*    \endcode
+*
+* 5. After the Em_EEPROM storage is defined, pass the address to
+*    the middleware:
+*    \snippet em_eeprom/sut_001/main.c snippet_eeprom_pass_address
+*
+* 6. Build the project to verify the correctness of the linker control file
+*    modifications.
+*
+********************************************************************************
+* \subsubsection section_em_eeprom_fixed_address_iar Em_EEPROM Storage at a Fixed Address for IAR Compiler
+********************************************************************************
+*
+* 1. Build the project to generate linker scripts.
+*
+* 2. Open the linker script "cy8c6xxa_cm4_dual.icf" for the CM4 core
+*    and search the following declaration:
+*    \code
+*      ".cy_app_signature" : place at address (__ICFEDIT_region_IROM1_end__ - 0x200) { section .cy_app_signature };
+*    \endcode
+*    Paste the following code right after the declaration:
+*    \code
+*      define symbol EM_EEPROM_START_ADDRESS = <EEPROM Storage Address>
+*      ".my_emulated_eeprom" : place at address (EM_EEPROM_START_ADDRESS) { section .my_emulated_eeprom };
+*    \endcode
+*    Search again the following declaration:
+*    \code
+*      keep {  section .cy_m0p_image,
+*              section .cy_app_signature,
+*    \endcode
+*    Paste the following code right after the declaration:
+*    \code
+*              section .my_emulated_eeprom,
 *    \endcode
 *    where:
 *   * EEPROM Storage Address is an absolute address in flash where
@@ -396,11 +505,11 @@
 *   on using this feature for EEPROM emulation. There are also multiple
 *   constraints for blocking and nonblocking flash operations, relating to
 *   interrupts, Power mode, IPC usage, etc.
-*   Refer to the "Flash (Flash System Routine)" section of the PSoC 6
-*   Peripheral Driver Library (psoc6pdl) API Reference Manual.<br>
+*   Refer to the "Flash (Flash System Routine)" section of the CAT1
+*   Peripheral Driver Library (mtb-pdl-cat1) API Reference Manual.<br>
 *
 * * Manage auxiliary flash space for both cores of PSoC 6. For PSoC 6,
-*   by default, the complier always assigns both cores with full range
+*   by default, the compiler always assigns both cores with full range
 *   of auxiliary flash (0x14000000-0x14008000) for EM_EEPROM. Both
 *   cores operate on the same flash object. A building error would occur
 *   if there is an out-sync operation on the memory range from any single
@@ -413,7 +522,7 @@
 *   the two cores causes the building failure. For details of how to manage
 *   the auxiliary flash for both cores properly refer to
 *   the <a href="https://community.cypress.com/docs/DOC-15264">
-*   <b>Manage Flash Space for Both Cores of PSoC 6 – KBA224173</b></a>
+*   <b>Manage Flash Space for Both Cores of PSoC 6 - KBA224173</b></a>
 *
 * * Writing of multiple rows by single the Cy_Em_EEPROM_Write() function
 *   may lead to the following behavior:
@@ -498,7 +607,7 @@
 *     <th>ModusToolbox Em_EEPROM Middleware</th>
 *   </tr>
 *   <tr>
-*     <td>EEPROM_Init(xxx)</td>
+*     <td>EEPROM_Init(X)</td>
 *     <td>Cy_Em_EEPROM_Init(&eepromConfig, &eepromContext)</td>
 *   </tr>
 *   <tr>
@@ -536,31 +645,35 @@
 *   </tr>
 *   <tr>
 *     <td>ModusToolbox Software Environment</td>
-*     <td>2.0</td>
+*     <td>2.3</td>
 *   </tr>
 *   <tr>
-*     <td>PSoC6 Peripheral Driver Library (PDL)</td>
-*     <td>1.2.0</td>
+*     <td>CAT1 Peripheral Driver Library (mtb-pdl-cat1)</td>
+*     <td>2.2.1</td>
+*   </tr>
+*   <tr>
+*     <td>CAT2 Peripheral Driver Library (mtb-pdl-cat2)</td>
+*     <td>1.3.0</td>
 *   </tr>
 *   <tr>
 *     <td>GCC Compiler</td>
-*     <td>7.2.1</td>
+*     <td>9.3.1</td>
 *   </tr>
 *   <tr>
 *     <td>IAR Compiler</td>
-*     <td>8.32</td>
+*     <td>8.42.2</td>
 *   </tr>
 *   <tr>
 *     <td>Arm Compiler 6</td>
-*     <td>6.11</td>
+*     <td>6.13</td>
 *   </tr>
 *   <tr>
-*     <td>MBED OS</td>
+*     <td>Mbed OS</td>
 *     <td>5.13.1</td>
 *   </tr>
 *   <tr>
 *     <td>FreeRTOS</td>
-*     <td>10.0.1</td>
+*     <td>10.3.1</td>
 *   </tr>
 * </table>
 *
@@ -578,22 +691,22 @@
 *     <th>Description of Deviation(s)</th>
 *   </tr>
 *   <tr>
-*     <td>3.1</td>
-*     <td>R</td>
-*     <td rowspan="2">Cast between a pointer to object and an integral type.</td>
-*     <td rowspan="2">The cast is used intentionally for the performance
-*         reason.</td>
-*   </tr>
-*   <tr>
-*     <td>11.3</td>
+*     <td>5.9</td>
 *     <td>A</td>
+*     <td>Static Identifiers should be unique.</td>
+*     <td>Following naming convention for static functions.</td>
 *   </tr>
 *   <tr>
-*     <td>17.4</td>
-*     <td>R</td>
-*     <td>Performing pointer arithmetic</td>
-*     <td>The pointer arithmetic is used intentionally for the
-*         performance reason.</td>
+*     <td>8.13</td>
+*     <td>A</td>
+*     <td>A pointer should point to a const-qualified type whenever possible</td>
+*     <td>const pointer is used in most cases.</td>
+*   </tr>
+*   <tr>
+*     <td>11.5</td>
+*     <td>A</td>
+*     <td>Typecast of void pointer should be avoided.</td>
+*     <td>The cast is used intentionally for the performance reason.</td>
 *   </tr>
 * </table>
 *
@@ -604,7 +717,24 @@
 * <table class="doxtable">
 *   <tr><th>Version</th><th>Changes</th><th>Reason for Change</th></tr>
 *   <tr>
-*     <td rowspan="10">2.0</td>
+*     <td rowspan="4">2.10</td>
+*     <td colspan="2">The Em_EEPROM 2.10 adds support for PSoC 4 devices.
+*         </td>
+*   </tr>
+*   <tr>
+*     <td>Updated major and minor version defines</td>
+*     <td>Follow naming convention</td>
+*   </tr>
+*   <tr>
+*     <td>Updated documentation</td>
+*     <td>User experience improvement and Logo update</td>
+*   </tr>
+*   <tr>
+*     <td>Fixed MISRA violations</td>
+*     <td>Improved the middleware robustness</td>
+*   </tr>
+*   <tr>
+*     <td rowspan="10">2.00</td>
 *     <td colspan="2">The Em_EEPROM 2.0 is not backward compatible with
 *         the previous version. It was significantly rewritten with changing
 *         the behavior of operation, adding many improvements and fixing
@@ -696,8 +826,11 @@
 *         Energy (BLE) Connectivity</b>
 *   </a>
 *
-* * <a href="https://github.com/cypresssemiconductorco.github.io/psoc6pdl/pdl_api_reference_manual/html/index.html">
-*   <b>PDL API Reference</b></a>
+* * <a href="https://cypresssemiconductorco.github.io/mtb-pdl-cat1/pdl_api_reference_manual/html/index.html">
+*   <b>CAT1 PDL API Reference</b></a>
+*
+* * <a href="https://cypresssemiconductorco.github.io/mtb-pdl-cat2/pdl_api_reference_manual/html/index.html">
+*   <b>CAT2 PDL API Reference</b></a>
 *
 * * <a href="https://www.cypress.com/documentation/technical-reference-manuals/psoc-6-mcu-psoc-63-ble-architecture-technical-reference">
 *      <b>PSoC 6 Technical Reference Manual</b>
@@ -707,12 +840,8 @@
 *      <b>PSoC 63 with BLE Datasheet Programmable System-on-Chip datasheet</b>
 *   </a>
 *
-* * <a href="http://www.cypress.com">
-*      <b>Cypress Semiconductor</b>
-*   </a>
-*
 * \note
-* The links to the other software component’s documentation (middleware and PDL)
+* The links to the other software component's documentation (middleware and PDL)
 * point to GitHub to the latest available version of the software.
 * To get documentation of the specified version, download from GitHub and unzip
 * the component archive. The documentation is available in
@@ -764,7 +893,7 @@ extern "C" {
 #define CY_EM_EEPROM_MW_VERSION_MAJOR       (2)
 
 /** Library minor version */
-#define CY_EM_EEPROM_MW_VERSION_MINOR       (0)
+#define CY_EM_EEPROM_MW_VERSION_MINOR       (10)
 
 /** Em_EEPROM PDL ID */
 #define CY_EM_EEPROM_ID                     (CY_PDL_DRV_ID(0x1BuL))
@@ -783,7 +912,7 @@ extern "C" {
 #define CY_EM_EEPROM_GET_NUM_ROWS_IN_EEPROM(dataSize, simpleMode) \
                 ((((dataSize) - 1uL) / (CY_EM_EEPROM_EEPROM_DATA_LEN(simpleMode))) + 1uL)
 
-/** Defines the maximum number of byte that can be stored in the Em_EEPROM storage */
+/** Defines the size of flash without wear leveling and redundant copy overhead */
 #define CY_EM_EEPROM_GET_NUM_DATA(dataSize, simpleMode) \
                 (CY_EM_EEPROM_GET_NUM_ROWS_IN_EEPROM(dataSize, simpleMode) * \
                 CY_EM_EEPROM_FLASH_SIZEOF_ROW)
@@ -859,6 +988,8 @@ typedef struct
     * are used. From the user's perspective, the behavior of blocking and
     * non-blocking writes are the same - the difference is that the
     * non-blocking writes do not block the interrupts.
+    *
+    * \note Non-blocking flash write is not supported by PSoC 4 device family.
     */
     uint8_t blockingWrite;
 
@@ -983,16 +1114,26 @@ uint32_t Cy_Em_EEPROM_NumWrites(
 /* Device-specific flash constants */
 #define CY_EM_EEPROM_FLASH_BASE_ADDR                (CY_FLASH_BASE)
 #define CY_EM_EEPROM_FLASH_SIZE                     (CY_FLASH_SIZE)
+
+#if (defined(CY_EM_EEPROM_BASE))       /* Only for PSoC 6 */
 #define CY_EM_EEPROM_EM_EEPROM_BASE_ADDR            (CY_EM_EEPROM_BASE)
 #define CY_EM_EEPROM_EM_EEPROM_SIZE                 (CY_EM_EEPROM_SIZE)
 #define CY_EM_EEPROM_EM_EEPROM_END_ADDR             (CY_EM_EEPROM_EM_EEPROM_BASE_ADDR + CY_EM_EEPROM_EM_EEPROM_SIZE)
+#endif /* (defined(CY_EM_EEPROM_BASE)) */
 
 #define CY_EM_EEPROM_FLASH_END_ADDR                 (CY_EM_EEPROM_FLASH_BASE_ADDR + CY_EM_EEPROM_FLASH_SIZE)
 
+/* PSoC 6 has EM_EEPROM flash region */
+#if (defined(CY_EM_EEPROM_BASE))
 /* Checks whether Em_EEPROM is in the flash range. */
 #define CY_EM_EEPROM_IS_IN_FLASH_RANGE(startAddr, endAddr) \
                     ((((startAddr) > CY_EM_EEPROM_FLASH_BASE_ADDR) && ((endAddr) <= CY_EM_EEPROM_FLASH_END_ADDR)) || \
                      (((startAddr) >= CY_EM_EEPROM_EM_EEPROM_BASE_ADDR) && ((endAddr) <= CY_EM_EEPROM_EM_EEPROM_END_ADDR)))
+#else /* (defined(CY_EM_EEPROM_BASE)) */
+/* Checks whether Em_EEPROM is in the flash range. */
+#define CY_EM_EEPROM_IS_IN_FLASH_RANGE(startAddr, endAddr) \
+                    ((((startAddr) > CY_EM_EEPROM_FLASH_BASE_ADDR) && ((endAddr) <= CY_EM_EEPROM_FLASH_END_ADDR)))
+#endif /* (defined(CY_EM_EEPROM_BASE)) */
 
 /* Defines the length of data that can be stored in the Em_EEPROM header. */
 #define CY_EM_EEPROM_HEADER_DATA_LEN                ((CY_EM_EEPROM_FLASH_SIZEOF_ROW / 2u) - 16u)

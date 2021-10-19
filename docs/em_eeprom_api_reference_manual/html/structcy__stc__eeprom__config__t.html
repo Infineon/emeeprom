@@ -6,7 +6,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=9"/>
 <meta name="generator" content="Doxygen 1.8.13"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Cypress Em_EEPROM Middleware Library 2.0: cy_stc_eeprom_config_t Struct Reference</title>
+<title>Em_EEPROM Middleware Library 2.10: cy_stc_eeprom_config_t Struct Reference</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -28,9 +28,9 @@
 <table cellspacing="0" cellpadding="0">
  <tbody>
  <tr style="height: 56px;">
-  <td id="projectlogo"><a href="http://www.cypress.com/"><img alt="Logo" src="cypress_logo.png"/></a></td>
+  <td id="projectlogo"><a href="http://www.cypress.com/"><img alt="Logo" src="infineon_logo.png"/></a></td>
   <td id="projectalign" style="padding-left: 0.5em;">
-   <div id="projectname">Cypress Em_EEPROM Middleware Library 2.0</div>
+   <div id="projectname">Em_EEPROM Middleware Library 2.10</div>
   </td>
  </tr>
  </tbody>
@@ -125,7 +125,7 @@ Data Fields</h2></td></tr>
 
 <p>The size of data in bytes to store in the Em_EEPROM. </p>
 <p>The size is rounded up to a full Em_EEPROM row size. The row size is specific for a device family. Refer to the specific PSoC device datasheet.<br />
- Note this size is often smaller than the total amount of flash used for the Em_EEPROM storage. The Em_EEPROM storage size depends on the Em_EEPROM configuration and can be bigger because increasing flash endurance (wear-leveling) and restoring corrupted data from a redundant copy. Refer to the <a class="el" href="index.html#section_em_eeprom_location">Em_EEPROM Location</a> section for size calculation equations. For convenience, use the <a class="el" href="group__group__em__eeprom__macros.html#gaedb7ebd5ea6efe79173c6582003420fb">CY_EM_EEPROM_GET_PHYSICAL_SIZE</a> macro to get the needed storage size depending on the configuration. </p>
+ Note this size is often smaller than the total amount of flash used for the Em_EEPROM storage. The Em_EEPROM storage size depends on the Em_EEPROM configuration and can be bigger because increasing flash endurance (wear-leveling) and restoring corrupted data from a redundant copy. Refer to the <a class="el" href="index.html#section_em_eeprom_location">Em_EEPROM Storage Variable Location and Size</a> section for size calculation equations. For convenience, use the <a class="el" href="group__group__em__eeprom__macros.html#gaedb7ebd5ea6efe79173c6582003420fb">CY_EM_EEPROM_GET_PHYSICAL_SIZE</a> macro to get the needed storage size depending on the configuration. </p>
 
 </div>
 </div>
@@ -194,7 +194,8 @@ Data Fields</h2></td></tr>
 </div><div class="memdoc">
 
 <p>If enabled (1 - enabled, 0 - disabled), the blocking writes to flash are used in the design. </p>
-<p>Otherwise, non-blocking flash writes are used. From the user's perspective, the behavior of blocking and non-blocking writes are the same - the difference is that the non-blocking writes do not block the interrupts. </p>
+<p>Otherwise, non-blocking flash writes are used. From the user's perspective, the behavior of blocking and non-blocking writes are the same - the difference is that the non-blocking writes do not block the interrupts.</p>
+<dl class="section note"><dt>Note</dt><dd>Non-blocking flash write is not supported by PSoC 4 device family. </dd></dl>
 
 </div>
 </div>
@@ -221,7 +222,7 @@ Data Fields</h2></td></tr>
 <div id="nav-path" class="navpath">
     <ul>
         <li class="footer">
-            Generated for <b>Cypress Em_EEPROM Middleware Library 2.0</b> by <b>Cypress Semiconductor Corporation</b>.
+            Generated for <b>Em_EEPROM Middleware Library 2.10</b> by <b>Cypress Semiconductor Corporation</b>.
             All rights reserved.
         </li>
     </ul>

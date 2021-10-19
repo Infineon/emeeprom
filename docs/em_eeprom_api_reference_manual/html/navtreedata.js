@@ -1,7 +1,7 @@
 var NAVTREE =
 [
-  [ "Cypress Em_EEPROM Middleware Library 2.0", "index.html", [
-    [ "Cypress Em_EEPROM Middleware Library", "index.html", [
+  [ "Em_EEPROM Middleware Library 2.10", "index.html", [
+    [ "Em_EEPROM Middleware Library", "index.html", [
       [ "General Description", "index.html#section_em_eeprom_general_description", null ],
       [ "Quick Start Guide", "index.html#section_em_eeprom_quick_start", null ],
       [ "Configuration Considerations", "index.html#section_em_eeprom_configuration_considerations", [
@@ -10,12 +10,14 @@ var NAVTREE =
           [ "Redundant Copy", "index.html#section_em_eeprom_mode_redundantcopy", null ],
           [ "Simple Mode", "index.html#section_em_eeprom_mode_simple", null ]
         ] ],
-        [ "Em_EEPROM Location", "index.html#section_em_eeprom_location", [
+        [ "Em_EEPROM Storage Variable Location and Size", "index.html#section_em_eeprom_location", [
           [ "Em_EEPROM Location in the application flash", "index.html#section_em_eeprom_appsflash_location", null ],
           [ "Em_EEPROM Location in the auxiliary flash", "index.html#section_em_eeprom_auxflash_location", null ]
         ] ],
         [ "Em_EEPROM Location in the application flash at a fixed address", "index.html#section_em_eeprom_appsflash_fixed", [
-          [ "Em_EEPROM Storage at a Fixed Address for GCC Compiler", "index.html#section_em_eeprom_fixed_address_gcc", null ]
+          [ "Em_EEPROM Storage at a Fixed Address for GCC Compiler", "index.html#section_em_eeprom_fixed_address_gcc", null ],
+          [ "Em_EEPROM Storage at a Fixed Address for ARM Compiler", "index.html#section_em_eeprom_fixed_address_arm", null ],
+          [ "Em_EEPROM Storage at a Fixed Address for IAR Compiler", "index.html#section_em_eeprom_fixed_address_iar", null ]
         ] ],
         [ "Limitations and Restrictions", "index.html#section_em_eeprom_miscellaneous", null ],
         [ "Migration from PSoC Creator", "index.html#section_em_eeprom_migration", [

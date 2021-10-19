@@ -1,6 +1,6 @@
 /***************************************************************************//**
 * \file cy_em_eeprom.c
-* \version 2.0
+* \version 2.10
 *
 * \brief
 *  This file provides source code of the API for the Emulated EEPROM library.
@@ -10,7 +10,8 @@
 *
 ********************************************************************************
 * \copyright
-* Copyright 2017-2019, Cypress Semiconductor Corporation.  All rights reserved.
+* (c) (2017-2021), Cypress Semiconductor Corporation (an Infineon company) or
+* an affiliate of Cypress Semiconductor Corporation. All rights reserved.
 * You may use this file only in accordance with the license, terms, conditions,
 * disclaimers, and limitations in the end user license agreement accompanying
 * the software package with which this file was provided.
@@ -56,7 +57,9 @@ static cy_en_em_eeprom_status_t ReadExtendedMode(
                 void * eepromData,
                 uint32_t size,
                 cy_stc_eeprom_context_t * context);
+#if (!defined(CY_IP_M0S8CPUSSV3))  /* Not supported by PSoC 4 */
 static cy_en_em_eeprom_status_t WaitTillComplete(void);
+#endif /* (!defined(CY_IP_M0S8CPUSSV3)) */
 static cy_en_em_eeprom_status_t WriteExtendedMode(
                 uint32_t addr,
                 const void * eepromData,
@@ -126,6 +129,14 @@ cy_en_em_eeprom_status_t Cy_Em_EEPROM_Init(
     {
         ret = CheckRanges(config);
 
+#if (defined(CY_IP_M0S8CPUSSV3))  /* Only for PSoC 4 */
+        if (CY_EM_EEPROM_SUCCESS == ret) {
+            if (config->blockingWrite == 0u) {
+               ret = CY_EM_EEPROM_BAD_PARAM;
+            }
+        }
+#endif /* (!defined(CY_IP_M0S8CPUSSV3)) */
+
         if (CY_EM_EEPROM_SUCCESS == ret)
         {
             /* Copies the user's config structure fields into the context */
@@ -169,7 +180,7 @@ cy_en_em_eeprom_status_t Cy_Em_EEPROM_Init(
 * EEPROM emulation. There are also multiple constraints for blocking and
 * nonblocking flash operations, relating to interrupts, power modes,
 * IPC usage, etc. Refer to the "Flash (Flash System Routine)" section of
-* the PSoC 6 Peripheral Driver Library (psoc6pdl) API Reference Manual.<br>
+* the CAT1 Peripheral Driver Library (mtb-pdl-cat1) API Reference Manual.<br>
 *
 * \param addr
 * The logical start address in the Em_EEPROM storage to start reading data from.
@@ -244,8 +255,9 @@ static cy_en_em_eeprom_status_t ReadSimpleMode(
                 uint32_t size,
                 const cy_stc_eeprom_context_t * context)
 {
+    uint8_t  * eepromData_p = eepromData;
     /* Copies data to the user's buffer */
-    (void)memcpy(eepromData, (const void *)(context->userFlashStartAddr + addr), size);
+    (void)memcpy(eepromData_p, (const uint8_t *)(context->userFlashStartAddr + addr), size);
 
     return (CY_EM_EEPROM_SUCCESS);
 }
@@ -288,6 +300,7 @@ static cy_en_em_eeprom_status_t ReadExtendedMode(
     uint32_t sizeToCopy;
     uint32_t sizeRemaining;
     uint32_t userBufferAddr;
+    uint8_t  * userBufferAddr_p;
     uint32_t * ptrRow;
     uint32_t * ptrRowWork;
     uint32_t curRowOffset;
@@ -310,7 +323,8 @@ static cy_en_em_eeprom_status_t ReadExtendedMode(
     /* 3. Reads relevant historic data into user's buffer */
     currentAddr = addr;
     sizeRemaining = size;
-    userBufferAddr = (uint32_t)eepromData;
+    userBufferAddr_p = eepromData;
+    userBufferAddr = (uint32_t)userBufferAddr_p;
     numRowReads = ((((addr + size) - 1u) / context->byteInRow) - (addr / context->byteInRow)) + 1u;
 
     ptrRow = (uint32_t *)(context->userFlashStartAddr + (CY_EM_EEPROM_FLASH_SIZEOF_ROW * (addr / context->byteInRow)));
@@ -362,11 +376,11 @@ static cy_en_em_eeprom_status_t ReadExtendedMode(
         /* If the correct CRC is found, then copies the data to the user's buffer */
         if (CY_EM_EEPROM_BAD_CHECKSUM != retHistoricCrc)
         {
-            (void)memcpy((void *)userBufferAddr, (const void *)((uint32_t)ptrRow + curRowOffset), sizeToCopy);
+            (void)memcpy((uint8_t *)userBufferAddr, (const uint8_t *)((uint32_t)ptrRow + curRowOffset), sizeToCopy);
         }
         else
         {
-            (void)memset((void *)userBufferAddr, 0, sizeToCopy);
+            (void)memset((uint8_t *)userBufferAddr, 0, sizeToCopy);
             if ((0u == GetStoredSeqNum(ptrRow)) && (0u == GetStoredRowChecksum(ptrRow)))
             {
                 /*
@@ -406,7 +420,6 @@ static cy_en_em_eeprom_status_t ReadExtendedMode(
 
     /* 4. Reads data from all active headers */
     ptrRow = GetReadRowPointer(context->ptrLastWrittenRow, context);
-    userBufferAddr = (uint32_t)eepromData;
     for (i = 0u; i < numReads; i++)
     {
         ptrRow = GetNextRowPointer(ptrRow, context);
@@ -437,9 +450,10 @@ static cy_en_em_eeprom_status_t ReadExtendedMode(
                 sizeToCopy = (strHeadAddr > addr) ? (strHeadAddr) : (addr);
                 sizeToCopy = ((endHeadAddr < (addr + size)) ? endHeadAddr : (addr + size)) - sizeToCopy;
 
+                userBufferAddr_p = eepromData;
                 /* Reads from the memory and writes to the buffer */
-                (void)memcpy((void *)((uint32_t)eepromData + dstOffset),
-                             (const void *)((uint32_t)ptrRowWork + srcOffset + CY_EM_EEPROM_HEADER_DATA_OFFSET),
+                (void)memcpy((uint8_t *)((uint32_t)userBufferAddr_p + dstOffset),
+                             (const uint8_t *)((uint32_t)ptrRowWork + srcOffset + CY_EM_EEPROM_HEADER_DATA_OFFSET),
                              sizeToCopy);
             }
         }
@@ -461,18 +475,19 @@ static cy_en_em_eeprom_status_t ReadExtendedMode(
 * This is a blocking function and it does not return until the write
 * operation is completed. The user's application program cannot enter
 * Hibernate mode until the write is completed.
-* The write operation is allowed in CPU Sleep and System Deep Sleep modes.
+* The write operation is allowed in CPU Sleep mode.
 * Do not reset your device during the flash operation, including the XRES pin,
 * a software reset, and watchdog reset sources. Also, configure low-voltage
 * detect circuits to generate an interrupt instead of a reset. Otherwise,
 * portions of flash may undergo unexpected changes.
 *
 * This function uses a buffer of the flash row size to perform the write
-* operation. For the size of the row, refer to the specific PSoC device
+* operation. All write operations are done for flash row size.
+* For the size of the row, refer to the specific PSoC device
 * datasheet.
 *
-* If the blocking write option is used, and write or erase operations are
-* performed by CM4, the user's code on CM0P and CM4 is blocked until the
+* If the blocking write option is used (PSoC 6), and write or erase operations
+* are performed by CM4, the user's code on CM0P and CM4 is blocked until the
 * operations are completed. If the operations are performed by CM0P, the
 * user's code on CM4 is not blocked and the user code's on CM0P is blocked
 * until the operation is completed. Plan your task allocation accordingly.
@@ -481,7 +496,7 @@ static cy_en_em_eeprom_status_t ReadExtendedMode(
 * EEPROM emulation. There are also multiple constraints for blocking and
 * nonblocking flash operations, relating to interrupts, Power modes,
 * IPC usage, etc. Refer to the "Flash (Flash System Routine)" section of
-* the PSoC 6 Peripheral Driver Library (psoc6pdl) API Reference Manual.<br>
+* the CAT1 Peripheral Driver Library (mtb-pdl-cat1) API Reference Manual.<br>
 *
 * \param addr
 * The logical start address in the Em_EEPROM storage to start writing data to.
@@ -562,21 +577,23 @@ static cy_en_em_eeprom_status_t WriteSimpleMode(
     uint32_t startAddr = addr % CY_EM_EEPROM_FLASH_SIZEOF_ROW;
     uint32_t numWrites = (((size + startAddr) - 1u) / CY_EM_EEPROM_FLASH_SIZEOF_ROW) + 1u;
     uint32_t * ptrRow = (uint32_t *)(context->userFlashStartAddr + (addr - startAddr));
-    uint32_t ptrUserData = (uint32_t)eepromData;
+    const uint8_t * ptrUserData_p = eepromData;
+    uint32_t ptrUserData = (uint32_t)ptrUserData_p;
     uint32_t writeRamBuffer[CY_EM_EEPROM_FLASH_SIZEOF_ROW_U32];
+    uint32_t lc_size = size;
 
     do
     {
         /* Fills the RAM buffer with flash data for the case when not a whole row is requested to be overwritten */
-        (void)memcpy((void *)&writeRamBuffer[0u], (const void *)ptrRow, CY_EM_EEPROM_FLASH_SIZEOF_ROW);
+        (void)memcpy((uint8_t *)&writeRamBuffer[0u], (const uint8_t *)ptrRow, CY_EM_EEPROM_FLASH_SIZEOF_ROW);
         /* Calculates the number of bytes to be written into the current row */
         numBytes = CY_EM_EEPROM_FLASH_SIZEOF_ROW - startAddr;
-        if (numBytes > size)
+        if (numBytes > lc_size)
         {
-            numBytes = size;
+            numBytes = lc_size;
         }
         /* Overwrites the RAM buffer with new data */
-        (void)memcpy((void *)((uint32_t)&writeRamBuffer[0u] + startAddr), (const void *)ptrUserData, numBytes);
+        (void)memcpy((uint8_t *)((uint32_t)&writeRamBuffer[0u] + startAddr), (const uint8_t *)ptrUserData, numBytes);
 
         /* Writes data to the specified flash row */
         ret = WriteRow(ptrRow, &writeRamBuffer[0u], context);
@@ -591,7 +608,7 @@ static cy_en_em_eeprom_status_t WriteSimpleMode(
         }
         /* Update pointers for the next row to be written if any */
         startAddr = 0u;
-        size -= numBytes;
+        lc_size -= numBytes;
         ptrUserData += numBytes;
         ptrRow += CY_EM_EEPROM_FLASH_SIZEOF_ROW_U32;
         wrCnt++;
@@ -637,8 +654,11 @@ static cy_en_em_eeprom_status_t WriteExtendedMode(
     uint32_t * ptrRow;
     uint32_t * ptrRowCopy;
     uint32_t writeRamBuffer[CY_EM_EEPROM_FLASH_SIZEOF_ROW_U32];
-    uint32_t ptrUserData = (uint32_t)eepromData;
+    const uint8_t * userBufferAddr_p = eepromData;
+    uint32_t ptrUserData = (uint32_t)userBufferAddr_p;
     uint32_t numWrites = ((size - 1u) / CY_EM_EEPROM_HEADER_DATA_LEN) + 1u;
+    uint32_t lc_addr = addr;
+    uint32_t lc_size = size;
 
     /* Checks CRC of the last written row and find the last written row if the CRC is broken */
     (void)CheckLastWrittenRowIntegrity(&seqNum, context);
@@ -654,17 +674,17 @@ static cy_en_em_eeprom_status_t WriteExtendedMode(
 
         /* 2. Fills the EM_EEPROM service header info */
         writeRamBuffer[CY_EM_EEPROM_HEADER_SEQ_NUM_OFFSET_U32] = seqNum;
-        writeRamBuffer[CY_EM_EEPROM_HEADER_ADDR_OFFSET_U32] = addr;
+        writeRamBuffer[CY_EM_EEPROM_HEADER_ADDR_OFFSET_U32] = lc_addr;
         writeRamBuffer[CY_EM_EEPROM_HEADER_LEN_OFFSET_U32] = CY_EM_EEPROM_HEADER_DATA_LEN;
         if (wrCnt == (numWrites - 1u))
         {
             /* Fills in the remaining size if this is the last row to write */
-            writeRamBuffer[CY_EM_EEPROM_HEADER_LEN_OFFSET_U32] = size;
+            writeRamBuffer[CY_EM_EEPROM_HEADER_LEN_OFFSET_U32] = lc_size;
         }
 
         /* 3. Writes the user's data to the buffer */
-        (void)memcpy((void *)&writeRamBuffer[CY_EM_EEPROM_HEADER_DATA_OFFSET_U32],
-                     (const void *)ptrUserData,
+        (void)memcpy((uint8_t *)&writeRamBuffer[CY_EM_EEPROM_HEADER_DATA_OFFSET_U32],
+                     (const uint8_t *)ptrUserData,
                      writeRamBuffer[CY_EM_EEPROM_HEADER_LEN_OFFSET_U32]);
 
         /* 4. Writes the historic data to the buffer */
@@ -680,9 +700,9 @@ static cy_en_em_eeprom_status_t WriteExtendedMode(
         retWriteRow = WriteRow(ptrRow, &writeRamBuffer[0u], context);
         if ((CY_EM_EEPROM_SUCCESS == retWriteRow) && (0u != context->redundantCopy))
         {
-			/* Writes data to the specified flash row in the redundant copy area */
-			ptrRowCopy = ptrRow + ((context->numberOfRows * context->wearLevelingFactor) * CY_EM_EEPROM_FLASH_SIZEOF_ROW_U32);
-			retWriteRow = WriteRow(ptrRowCopy, &writeRamBuffer[0u], context);
+            /* Writes data to the specified flash row in the redundant copy area */
+            ptrRowCopy = ptrRow + ((context->numberOfRows * context->wearLevelingFactor) * CY_EM_EEPROM_FLASH_SIZEOF_ROW_U32);
+            retWriteRow = WriteRow(ptrRowCopy, &writeRamBuffer[0u], context);
         }
 
         if (CY_EM_EEPROM_SUCCESS == retWriteRow)
@@ -695,14 +715,14 @@ static cy_en_em_eeprom_status_t WriteExtendedMode(
         }
 
         /* Switches to the next row */
-        size -= CY_EM_EEPROM_HEADER_DATA_LEN;
-        addr += CY_EM_EEPROM_HEADER_DATA_LEN;
+        lc_size -= CY_EM_EEPROM_HEADER_DATA_LEN;
+        lc_addr += CY_EM_EEPROM_HEADER_DATA_LEN;
         ptrUserData += CY_EM_EEPROM_HEADER_DATA_LEN;
     }
 
     if (CY_EM_EEPROM_SUCCESS != retWriteRow)
     {
-    	ret = retWriteRow;
+        ret = retWriteRow;
     }
 
     return(ret);
@@ -735,7 +755,7 @@ static cy_en_em_eeprom_status_t WriteExtendedMode(
 * This is a blocking function and it does not return until the erase
 * operation is completed. The user's application program cannot enter
 * Hibernate mode until the write is completed.
-* The write operation is allowed in CPU Sleep and System Deep Sleep modes.
+* The write operation is allowed in CPU Sleep mode.
 * Do not reset your device during the flash operation, including the XRES pin,
 * a software reset, and watchdog reset sources. Also, configure low-voltage
 * detect circuits to generate an interrupt instead of a reset. Otherwise,
@@ -751,7 +771,7 @@ static cy_en_em_eeprom_status_t WriteExtendedMode(
 * EEPROM emulation. There are also multiple constraints for blocking and
 * nonblocking flash operations, relating to interrupts, power mode,
 * IPC usage, etc. Refer to the "Flash (Flash System Routine)" section of
-* the PSoC 6 Peripheral Driver Library (psoc6pdl) API Reference Manual.<br>
+* the CAT1 Peripheral Driver Library (mtb-pdl-cat1) API Reference Manual.<br>
 * Also, refer to the \ref section_em_eeprom_miscellaneous section for
 * the different Em_EEPROM middleware restrictions and limitations.
 *
@@ -980,7 +1000,7 @@ static cy_en_em_eeprom_status_t CheckRanges(const cy_stc_eeprom_config_t * confi
 *
 * Writes one flash row starting from the specified row address.
 *
-* \param rowAdd
+* \param rowAddr
 * The pointer to the flash row.
 *
 * \param rowData
@@ -1008,6 +1028,7 @@ static cy_en_em_eeprom_status_t WriteRow(
             ret = CY_EM_EEPROM_SUCCESS;
         }
     }
+#if (!defined(CY_IP_M0S8CPUSSV3))  /* Not supported by PSoC 4 */
     else
     {
         /* Initiates the write */
@@ -1016,6 +1037,7 @@ static cy_en_em_eeprom_status_t WriteRow(
             ret = WaitTillComplete();
         }
     }
+#endif /* !defined(CY_IP_M0S8CPUSSV3) */
 
     return (ret);
 }
@@ -1029,7 +1051,7 @@ static cy_en_em_eeprom_status_t WriteRow(
 * copy option is enabled, the corresponding row in the redundant copy will also
 * be erased.
 *
-* \param rowAdd
+* \param rowAddr
 * The pointer of the flash row.
 *
 * \param ramBuffAddr
@@ -1048,6 +1070,7 @@ static cy_en_em_eeprom_status_t EraseRow(
                 const uint32_t * ramBuffAddr,
                 const cy_stc_eeprom_context_t * context)
 {
+#if (!defined(CY_IP_M0S8CPUSSV3))
     cy_en_em_eeprom_status_t ret = CY_EM_EEPROM_WRITE_FAIL;
 
     (void)ramBuffAddr; /* To avoid the compiler warning */
@@ -1070,9 +1093,25 @@ static cy_en_em_eeprom_status_t EraseRow(
     }
 
     return(ret);
+#else /* !defined(CY_IP_M0S8CPUSSV3) */
+    cy_en_em_eeprom_status_t ret = CY_EM_EEPROM_WRITE_FAIL;
+
+    if (0u != context->blockingWrite)
+    {
+        /* Does the blocking write */
+        if (CY_FLASH_DRV_SUCCESS == Cy_Flash_WriteRow((uint32_t)rowAddr, ramBuffAddr))
+        {
+            ret = CY_EM_EEPROM_SUCCESS;
+        }
+    }
+
+    return(ret);
+
+#endif /* !defined(CY_IP_M0S8CPUSSV3) */
 }
 
 
+#if (!defined(CY_IP_M0S8CPUSSV3))  /* Not supported by PSoC 4 */
 /*******************************************************************************
 * Function Name: WaitTillComplete
 ****************************************************************************//**
@@ -1081,6 +1120,8 @@ static cy_en_em_eeprom_status_t EraseRow(
 * The software watchdog counter is added to prevent the firmware.
 * Returns \ref CY_EM_EEPROM_WRITE_FAIL if the watchdog timeout occurred,
 * otherwise returns \ref CY_EM_EEPROM_SUCCESS.
+*
+* \note This function is not supported by PSoC 4 device family.
 *
 * \return
 * Returns the status of operation. See \ref cy_en_em_eeprom_status_t.
@@ -1095,7 +1136,7 @@ static cy_en_em_eeprom_status_t WaitTillComplete(void)
     do
     {
         /* Waits 1ms */
-    	Cy_SysLib_Delay(1u);
+        Cy_SysLib_Delay(1u);
         /* Checks if the erase is completed */
         rc = Cy_Flash_IsWriteComplete();
         countMs--;
@@ -1109,6 +1150,7 @@ static cy_en_em_eeprom_status_t WaitTillComplete(void)
 
     return(ret);
 }
+#endif /* (!defined(CY_IP_M0S8CPUSSV3)) */
 
 
 /*******************************************************************************
@@ -1311,7 +1353,7 @@ static cy_en_em_eeprom_status_t CheckLastWrittenRowIntegrity(
 {
     cy_en_em_eeprom_status_t ret = CY_EM_EEPROM_SUCCESS;
 
-    uint32_t * ptrRowCopy;
+    const uint32_t * ptrRowCopy;
     uint32_t seqNum = 0u;
 
     if (0u == context->simpleMode)
@@ -1387,15 +1429,16 @@ static uint32_t * GetNextRowPointer(
 {
     uint32_t wlEndAddr = ((CY_EM_EEPROM_FLASH_SIZEOF_ROW * context->numberOfRows) *
             context->wearLevelingFactor) + context->userFlashStartAddr;
+    uint32_t * lc_ptrRow = ptrRow;
 
     /* Gets the pointer to the next row to be processed without the range verification */
-    ptrRow += CY_EM_EEPROM_FLASH_SIZEOF_ROW_U32;
+    lc_ptrRow += CY_EM_EEPROM_FLASH_SIZEOF_ROW_U32;
 
-    if ((uint32_t)ptrRow >= wlEndAddr)
+    if ((uint32_t)lc_ptrRow >= wlEndAddr)
     {
-        ptrRow = (uint32_t *)context->userFlashStartAddr;
+        lc_ptrRow = (uint32_t *)context->userFlashStartAddr;
     }
-    return (ptrRow);
+    return (lc_ptrRow);
 }
 
 
@@ -1420,6 +1463,7 @@ static uint32_t * GetReadRowPointer(
                 const cy_stc_eeprom_context_t * context)
 {
     uint32_t wlBlockSize;
+    uint32_t * lc_ptrRow = ptrRow;
 
     /* Adjusts the row read pointer if wear leveling is enabled */
     if (context->wearLevelingFactor > 1u)
@@ -1427,18 +1471,18 @@ static uint32_t * GetReadRowPointer(
         /* The size of one wear-leveling block */
         wlBlockSize = context->numberOfRows * CY_EM_EEPROM_FLASH_SIZEOF_ROW;
         /* Checks if it is the first block of the wear leveling */
-        if (((uint32_t)ptrRow) < (context->userFlashStartAddr + wlBlockSize))
+        if (((uint32_t)lc_ptrRow) < (context->userFlashStartAddr + wlBlockSize))
         {
             /* Jumps to the last wear-leveling block */
-        	ptrRow = (uint32_t *)((uint32_t)ptrRow + (wlBlockSize * (context->wearLevelingFactor - 1u)));
+            lc_ptrRow = (uint32_t *)((uint32_t)lc_ptrRow + (wlBlockSize * (context->wearLevelingFactor - 1u)));
         }
         else
         {
             /* Decreases the read pointer for one wear-leveling block */
-        	ptrRow = (uint32_t *)((uint32_t)ptrRow - wlBlockSize);
+            lc_ptrRow = (uint32_t *)((uint32_t)lc_ptrRow - wlBlockSize);
         }
     }
-    return (ptrRow);
+    return (lc_ptrRow);
 }
 
 
@@ -1470,12 +1514,12 @@ static cy_en_em_eeprom_status_t CopyHistoricData(
                 const cy_stc_eeprom_context_t * context)
 {
     cy_en_em_eeprom_status_t ret = CY_EM_EEPROM_BAD_CHECKSUM;
-    uint32_t * ptrRowRead = GetReadRowPointer(ptrRow, context);
+    const uint32_t * ptrRowRead = GetReadRowPointer(ptrRow, context);
 
     if (CY_EM_EEPROM_SUCCESS == CheckRowChecksum(ptrRowRead))
     {
-        (void)memcpy((void *)&ptrRowWrite[CY_EM_EEPROM_HISTORIC_DATA_OFFSET_U32],
-                     (const void *)&ptrRowRead[CY_EM_EEPROM_HISTORIC_DATA_OFFSET_U32],
+        (void)memcpy((uint8_t *)&ptrRowWrite[CY_EM_EEPROM_HISTORIC_DATA_OFFSET_U32],
+                     (const uint8_t *)&ptrRowRead[CY_EM_EEPROM_HISTORIC_DATA_OFFSET_U32],
                      context->byteInRow);
         ret = CY_EM_EEPROM_SUCCESS;
     }
@@ -1489,8 +1533,8 @@ static cy_en_em_eeprom_status_t CopyHistoricData(
             if (CY_EM_EEPROM_SUCCESS == CheckRowChecksum(ptrRowRead))
             {
                 /* Copies the Em_EEPROM historic data from the redundant copy */
-                (void)memcpy((void *)&ptrRowWrite[CY_EM_EEPROM_HISTORIC_DATA_OFFSET_U32],
-                             (const void *)&ptrRowRead[CY_EM_EEPROM_HISTORIC_DATA_OFFSET_U32],
+                (void)memcpy((uint8_t *)&ptrRowWrite[CY_EM_EEPROM_HISTORIC_DATA_OFFSET_U32],
+                             (const uint8_t *)&ptrRowRead[CY_EM_EEPROM_HISTORIC_DATA_OFFSET_U32],
                              context->byteInRow);
                 /* Reports that the redundant copy was used */
                 ret = CY_EM_EEPROM_REDUNDANT_COPY_USED;
@@ -1584,7 +1628,7 @@ static void CopyHeadersData(
             }
         }
 
-        /* Skipsthe row if CRC is bad */
+        /* Skips the row if CRC is bad */
         if (CY_EM_EEPROM_SUCCESS == crcStatus)
         {
             /* The address of header data */
@@ -1611,8 +1655,8 @@ static void CopyHeadersData(
                     srcOffset = context->byteInRow - (strHeadAddr % context->byteInRow);
                     sizeToCopy = endHeadAddr - strHistAddr;
                 }
-                (void)memcpy((void *)((uint32_t)(&ptrRowWrite[CY_EM_EEPROM_HISTORIC_DATA_OFFSET_U32]) + dstOffset),
-                            (const void *)((uint32_t)(&ptrRowWork[CY_EM_EEPROM_HEADER_DATA_OFFSET_U32]) + srcOffset),
+                (void)memcpy((uint8_t *)((uint32_t)(&ptrRowWrite[CY_EM_EEPROM_HISTORIC_DATA_OFFSET_U32]) + dstOffset),
+                            (const uint8_t *)((uint32_t)(&ptrRowWork[CY_EM_EEPROM_HEADER_DATA_OFFSET_U32]) + srcOffset),
                             sizeToCopy);
             }
         }

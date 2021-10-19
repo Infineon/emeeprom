@@ -6,7 +6,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=9"/>
 <meta name="generator" content="Doxygen 1.8.13"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Cypress Em_EEPROM Middleware Library 2.0: Functions</title>
+<title>Em_EEPROM Middleware Library 2.10: Functions</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -28,9 +28,9 @@
 <table cellspacing="0" cellpadding="0">
  <tbody>
  <tr style="height: 56px;">
-  <td id="projectlogo"><a href="http://www.cypress.com/"><img alt="Logo" src="cypress_logo.png"/></a></td>
+  <td id="projectlogo"><a href="http://www.cypress.com/"><img alt="Logo" src="infineon_logo.png"/></a></td>
   <td id="projectalign" style="padding-left: 0.5em;">
-   <div id="projectname">Cypress Em_EEPROM Middleware Library 2.0</div>
+   <div id="projectname">Em_EEPROM Middleware Library 2.10</div>
   </td>
  </tr>
  </tbody>
@@ -198,7 +198,7 @@ Functions</h2></td></tr>
 <p>Reads data from a specified location. </p>
 <p>This function takes a logical Em_EEPROM address, converts it to an actual physical address where data is stored and returns the data to the user.</p>
 <p>This function uses a buffer of the flash row size to perform the read operation. For the size of the row, refer to the specific PSoC device datasheet.</p>
-<p>There are restrictions on using the read-while-write (RWW) feature for EEPROM emulation. There are also multiple constraints for blocking and nonblocking flash operations, relating to interrupts, power modes, IPC usage, etc. Refer to the "Flash (Flash System Routine)" section of the PSoC 6 Peripheral Driver Library (psoc6pdl) API Reference Manual.<br />
+<p>There are restrictions on using the read-while-write (RWW) feature for EEPROM emulation. There are also multiple constraints for blocking and nonblocking flash operations, relating to interrupts, power modes, IPC usage, etc. Refer to the "Flash (Flash System Routine)" section of the CAT1 Peripheral Driver Library (mtb-pdl-cat1) API Reference Manual.<br />
 </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
@@ -259,10 +259,10 @@ Functions</h2></td></tr>
 
 <p>Writes data to a specified location. </p>
 <p>This function takes the logical Em_EEPROM address and converts it to an actual physical address and writes data there. If wear leveling is enabled, the writing process uses the wear leveling techniques.</p>
-<p>This is a blocking function and it does not return until the write operation is completed. The user's application program cannot enter Hibernate mode until the write is completed. The write operation is allowed in CPU Sleep and System Deep Sleep modes. Do not reset your device during the flash operation, including the XRES pin, a software reset, and watchdog reset sources. Also, configure low-voltage detect circuits to generate an interrupt instead of a reset. Otherwise, portions of flash may undergo unexpected changes.</p>
-<p>This function uses a buffer of the flash row size to perform the write operation. For the size of the row, refer to the specific PSoC device datasheet.</p>
-<p>If the blocking write option is used, and write or erase operations are performed by CM4, the user's code on CM0P and CM4 is blocked until the operations are completed. If the operations are performed by CM0P, the user's code on CM4 is not blocked and the user code's on CM0P is blocked until the operation is completed. Plan your task allocation accordingly.</p>
-<p>There are restrictions on using the read-while-write (RWW) feature for EEPROM emulation. There are also multiple constraints for blocking and nonblocking flash operations, relating to interrupts, Power modes, IPC usage, etc. Refer to the "Flash (Flash System Routine)" section of the PSoC 6 Peripheral Driver Library (psoc6pdl) API Reference Manual.<br />
+<p>This is a blocking function and it does not return until the write operation is completed. The user's application program cannot enter Hibernate mode until the write is completed. The write operation is allowed in CPU Sleep mode. Do not reset your device during the flash operation, including the XRES pin, a software reset, and watchdog reset sources. Also, configure low-voltage detect circuits to generate an interrupt instead of a reset. Otherwise, portions of flash may undergo unexpected changes.</p>
+<p>This function uses a buffer of the flash row size to perform the write operation. All write operations are done for flash row size. For the size of the row, refer to the specific PSoC device datasheet.</p>
+<p>If the blocking write option is used (PSoC 6), and write or erase operations are performed by CM4, the user's code on CM0P and CM4 is blocked until the operations are completed. If the operations are performed by CM0P, the user's code on CM4 is not blocked and the user code's on CM0P is blocked until the operation is completed. Plan your task allocation accordingly.</p>
+<p>There are restrictions on using the read-while-write (RWW) feature for EEPROM emulation. There are also multiple constraints for blocking and nonblocking flash operations, relating to interrupts, Power modes, IPC usage, etc. Refer to the "Flash (Flash System Routine)" section of the CAT1 Peripheral Driver Library (mtb-pdl-cat1) API Reference Manual.<br />
 </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
@@ -305,9 +305,9 @@ Functions</h2></td></tr>
 <p>In the <a class="el" href="index.html#section_em_eeprom_mode_simple">Simple Mode</a> the function just erases the entire content of Em_EEPROM.</p>
 <p>When Simple Mode is disabled, the function first performs one write operation to keep the number of writes completed so far and then erases all rest content of Em_EEPROM memory. So, the <a class="el" href="group__group__em__eeprom__functions.html#gad7fb39640526ce706a7867d955d2b275" title="Returns the number of the Em_EEPROM Writes completed so far. ">Cy_Em_EEPROM_NumWrites()</a> function returns the correct value. Refer to the <a class="el" href="group__group__em__eeprom__functions.html#gaa792ff05d2b6ee71b44f1faeb2b68886" title="Writes data to a specified location. ">Cy_Em_EEPROM_Write()</a> function for the side effect of the write operation. If the write operation is failed then corresponding status is returned and no erase operation is executed.</p>
 <p>This function uses a buffer of the flash row size to perform the erase operation. For the size of the row, refer to the specific PSoC device datasheet.</p>
-<p>This is a blocking function and it does not return until the erase operation is completed. The user's application program cannot enter Hibernate mode until the write is completed. The write operation is allowed in CPU Sleep and System Deep Sleep modes. Do not reset your device during the flash operation, including the XRES pin, a software reset, and watchdog reset sources. Also, configure low-voltage detect circuits to generate an interrupt instead of a reset. Otherwise, portions of flash may undergo unexpected changes.</p>
+<p>This is a blocking function and it does not return until the erase operation is completed. The user's application program cannot enter Hibernate mode until the write is completed. The write operation is allowed in CPU Sleep mode. Do not reset your device during the flash operation, including the XRES pin, a software reset, and watchdog reset sources. Also, configure low-voltage detect circuits to generate an interrupt instead of a reset. Otherwise, portions of flash may undergo unexpected changes.</p>
 <p>If the blocking write option is used, and write or erase operations are performed by CM4, the user's code on CM0P and CM4 is blocked until the operations are completed. If the operations are performed by CM0P, the user's code on CM4 is not blocked and the user code's on CM0P is blocked until the operation is completed. Plan your task allocation accordingly.</p>
-<p>There are restrictions on using the read-while-write (RWW) feature for EEPROM emulation. There are also multiple constraints for blocking and nonblocking flash operations, relating to interrupts, power mode, IPC usage, etc. Refer to the "Flash (Flash System Routine)" section of the PSoC 6 Peripheral Driver Library (psoc6pdl) API Reference Manual.<br />
+<p>There are restrictions on using the read-while-write (RWW) feature for EEPROM emulation. There are also multiple constraints for blocking and nonblocking flash operations, relating to interrupts, power mode, IPC usage, etc. Refer to the "Flash (Flash System Routine)" section of the CAT1 Peripheral Driver Library (mtb-pdl-cat1) API Reference Manual.<br />
  Also, refer to the <a class="el" href="index.html#section_em_eeprom_miscellaneous">Limitations and Restrictions</a> section for the different Em_EEPROM middleware restrictions and limitations.</p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
@@ -365,7 +365,7 @@ Functions</h2></td></tr>
 <div id="nav-path" class="navpath">
     <ul>
         <li class="footer">
-            Generated for <b>Cypress Em_EEPROM Middleware Library 2.0</b> by <b>Cypress Semiconductor Corporation</b>.
+            Generated for <b>Em_EEPROM Middleware Library 2.10</b> by <b>Cypress Semiconductor Corporation</b>.
             All rights reserved.
         </li>
     </ul>
