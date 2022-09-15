@@ -1,6 +1,6 @@
 /***************************************************************************//**
 * \file cy_em_eeprom.c
-* \version 2.10
+* \version 2.20
 *
 * \brief
 *  This file provides source code of the API for the Emulated EEPROM library.
@@ -57,9 +57,9 @@ static cy_en_em_eeprom_status_t ReadExtendedMode(
                 void * eepromData,
                 uint32_t size,
                 cy_stc_eeprom_context_t * context);
-#if (!defined(CY_IP_M0S8CPUSSV3))  /* Not supported by PSoC 4 */
+#if (!(defined(CY_IP_M0S8CPUSSV3) || defined(CY_IP_M7CPUSS)))  /* Only for PSoC 6 */
 static cy_en_em_eeprom_status_t WaitTillComplete(void);
-#endif /* (!defined(CY_IP_M0S8CPUSSV3)) */
+#endif /* (!(defined(CY_IP_M0S8CPUSSV3) || defined(CY_IP_M7CPUSS))) */
 static cy_en_em_eeprom_status_t WriteExtendedMode(
                 uint32_t addr,
                 const void * eepromData,
@@ -83,10 +83,29 @@ static cy_en_em_eeprom_status_t CopyHistoricData(
                 uint32_t * ptrRowWrite,
                 uint32_t * ptrRow,
                 const cy_stc_eeprom_context_t * context);
-static void CopyHeadersData(
+static cy_en_em_eeprom_status_t CopyHeadersData(
                 uint32_t * ptrRowWrite,
                 uint32_t * ptrRow,
                 const cy_stc_eeprom_context_t * context);
+
+#if (defined(CY_IP_M7CPUSS))  /* XMC7xxx */
+
+/* CM7 Data Cache Line Size */
+#define CM7_CACHELINE_SIZE         (__SCB_DCACHE_LINE_SIZE)
+
+static int WorkFlashBlankCheck(
+                uint32_t *addr,
+                uint32_t size);
+
+static cy_en_flashdrv_status_t WorkFlashProgramRow(
+                uint32_t *addr,
+                uint8_t *data);
+
+static bool WorkFlashBoundsCheck(
+                uint32_t address_start,
+                uint32_t address_end);
+
+#endif /* (defined(CY_IP_M7CPUSS)) */
 
 /*******************************************************************************
 * Function Name: Cy_Em_EEPROM_Init
@@ -129,13 +148,13 @@ cy_en_em_eeprom_status_t Cy_Em_EEPROM_Init(
     {
         ret = CheckRanges(config);
 
-#if (defined(CY_IP_M0S8CPUSSV3))  /* Only for PSoC 4 */
+#if (defined(CY_IP_M0S8CPUSSV3) || defined(CY_IP_M7CPUSS))  /* Only for PSoC 4 or XMC7xxx */
         if (CY_EM_EEPROM_SUCCESS == ret) {
             if (config->blockingWrite == 0u) {
                ret = CY_EM_EEPROM_BAD_PARAM;
             }
         }
-#endif /* (!defined(CY_IP_M0S8CPUSSV3)) */
+#endif /* (defined(CY_IP_M0S8CPUSSV3) || defined(CY_IP_M7CPUSS)) */
 
         if (CY_EM_EEPROM_SUCCESS == ret)
         {
@@ -158,8 +177,14 @@ cy_en_em_eeprom_status_t Cy_Em_EEPROM_Init(
             /* Stores frequently used data for internal use */
             context->numberOfRows = CY_EM_EEPROM_GET_NUM_ROWS_IN_EEPROM(context->eepromSize, context->simpleMode);
             context->byteInRow = CY_EM_EEPROM_EEPROM_DATA_LEN(context->simpleMode);
+
+#if (defined(CY_IP_M7CPUSS))  /* XMC7xxx */
+            Cy_Flash_Init();
+            Cy_Flashc_WorkWriteEnable();
+#endif /* (defined(CY_IP_M7CPUSS)) */
         }
     }
+
     return(ret);
 }
 
@@ -256,8 +281,17 @@ static cy_en_em_eeprom_status_t ReadSimpleMode(
                 const cy_stc_eeprom_context_t * context)
 {
     uint8_t  * eepromData_p = eepromData;
+#if (defined(CY_IP_M7CPUSS))  /* XMC7xxx */
+    if (WorkFlashBlankCheck((uint32_t *)(context->userFlashStartAddr + addr), size )) {
+       /* Fills the RAM buffer with flash data for the case when not a whole row is requested to be overwritten */
+       (void)memset((void *)eepromData_p, 0, size);
+    } else {
+       (void)memcpy(eepromData_p, (const void *)(context->userFlashStartAddr + addr), size);
+    }
+#else  /* (defined(CY_IP_M7CPUSS)) */
     /* Copies data to the user's buffer */
     (void)memcpy(eepromData_p, (const uint8_t *)(context->userFlashStartAddr + addr), size);
+#endif /* (defined(CY_IP_M7CPUSS)) */
 
     return (CY_EM_EEPROM_SUCCESS);
 }
@@ -579,13 +613,36 @@ static cy_en_em_eeprom_status_t WriteSimpleMode(
     uint32_t * ptrRow = (uint32_t *)(context->userFlashStartAddr + (addr - startAddr));
     const uint8_t * ptrUserData_p = eepromData;
     uint32_t ptrUserData = (uint32_t)ptrUserData_p;
+#if defined(CY_IP_M7CPUSS)
+    /* PDL requires DCache Line Size aligned Write buffer with DCache Enabled */
+    uint32_t writeRamBuffer_a[CY_EM_EEPROM_FLASH_SIZEOF_ROW_U32 + CM7_CACHELINE_SIZE];
+    uint32_t *writeRamBuffer;
+#else /* defined(CY_IP_M7CPUSS) */
     uint32_t writeRamBuffer[CY_EM_EEPROM_FLASH_SIZEOF_ROW_U32];
+#endif /* defined(CY_IP_M7CPUSS) */
     uint32_t lc_size = size;
+
+#if defined(CY_IP_M7CPUSS)
+    if (((uint32_t) &writeRamBuffer_a[0] & (CM7_CACHELINE_SIZE - 1)) == 0x0) {
+       writeRamBuffer = writeRamBuffer_a;
+    } else {
+       writeRamBuffer = (uint32_t *)(((uint32_t) &writeRamBuffer_a[0] + CM7_CACHELINE_SIZE) & ~(CM7_CACHELINE_SIZE - 1));
+    }
+#endif /* defined(CY_IP_M7CPUSS) */
 
     do
     {
+#if (defined(CY_IP_M7CPUSS))  /* XMC7xxx */
+        /* Fills the RAM buffer with flash data for the case when not a whole row is requested to be overwritten */
+        if (WorkFlashBlankCheck(ptrRow, CY_EM_EEPROM_FLASH_SIZEOF_ROW )) {
+           (void)memset((uint8_t *)&writeRamBuffer[0u], 0, CY_EM_EEPROM_FLASH_SIZEOF_ROW);
+        } else {
+           (void)memcpy((uint8_t *)&writeRamBuffer[0u], (const uint8_t *)ptrRow, CY_EM_EEPROM_FLASH_SIZEOF_ROW);
+        }
+#else  /* (defined(CY_IP_M7CPUSS)) */
         /* Fills the RAM buffer with flash data for the case when not a whole row is requested to be overwritten */
         (void)memcpy((uint8_t *)&writeRamBuffer[0u], (const uint8_t *)ptrRow, CY_EM_EEPROM_FLASH_SIZEOF_ROW);
+#endif /* (defined(CY_IP_M7CPUSS)) */
         /* Calculates the number of bytes to be written into the current row */
         numBytes = CY_EM_EEPROM_FLASH_SIZEOF_ROW - startAddr;
         if (numBytes > lc_size)
@@ -653,12 +710,26 @@ static cy_en_em_eeprom_status_t WriteExtendedMode(
     uint32_t seqNum;
     uint32_t * ptrRow;
     uint32_t * ptrRowCopy;
+#if defined(CY_IP_M7CPUSS)
+    /* PDL requires DCache Line Size aligned Write buffer with DCache Enabled */
+    uint32_t writeRamBuffer_a[CY_EM_EEPROM_FLASH_SIZEOF_ROW_U32 + CM7_CACHELINE_SIZE];
+    uint32_t *writeRamBuffer;
+#else /* defined(CY_IP_M7CPUSS) */
     uint32_t writeRamBuffer[CY_EM_EEPROM_FLASH_SIZEOF_ROW_U32];
+#endif /* defined(CY_IP_M7CPUSS) */
     const uint8_t * userBufferAddr_p = eepromData;
     uint32_t ptrUserData = (uint32_t)userBufferAddr_p;
     uint32_t numWrites = ((size - 1u) / CY_EM_EEPROM_HEADER_DATA_LEN) + 1u;
     uint32_t lc_addr = addr;
     uint32_t lc_size = size;
+
+#if defined(CY_IP_M7CPUSS)
+    if (((uint32_t) &writeRamBuffer_a[0] & (CM7_CACHELINE_SIZE - 1)) == 0x0) {
+       writeRamBuffer = writeRamBuffer_a;
+    } else {
+       writeRamBuffer = (uint32_t *)(((uint32_t) &writeRamBuffer_a[0] + CM7_CACHELINE_SIZE) & ~(CM7_CACHELINE_SIZE - 1));
+    }
+#endif /* defined(CY_IP_M7CPUSS) */
 
     /* Checks CRC of the last written row and find the last written row if the CRC is broken */
     (void)CheckLastWrittenRowIntegrity(&seqNum, context);
@@ -691,7 +762,7 @@ static cy_en_em_eeprom_status_t WriteExtendedMode(
         ret = CopyHistoricData(&writeRamBuffer[0u], ptrRow, context);
 
         /* 5. Writes the data from other headers */
-        CopyHeadersData(&writeRamBuffer[0u], ptrRow, context);
+        ret = CopyHeadersData(&writeRamBuffer[0u], ptrRow, context);
 
         /* 6. Calculates a checksum */
         writeRamBuffer[CY_EM_EEPROM_HEADER_CHECKSUM_OFFSET_U32] = CalculateRowChecksum(&writeRamBuffer[0u]);
@@ -985,10 +1056,17 @@ static cy_en_em_eeprom_status_t CheckRanges(const cy_stc_eeprom_config_t * confi
         endAddr = startAddr + CY_EM_EEPROM_GET_PHYSICAL_SIZE(cfg->eepromSize, cfg->simpleMode, cfg->wearLevelingFactor, (uint32_t)cfg->redundantCopy);
 
         /* Range checks if there is enough flash for Em_EEPROM */
+#if (!defined(CY_IP_M7CPUSS))  /* Not XMC7xxx */
         if (CY_EM_EEPROM_IS_IN_FLASH_RANGE(startAddr, endAddr))
         {
             ret = CY_EM_EEPROM_SUCCESS;
         }
+#else  /* (!defined(CY_IP_M7CPUSS)) */
+        if (WorkFlashBoundsCheck(startAddr, endAddr))
+        {
+            ret = CY_EM_EEPROM_SUCCESS;
+        }
+#endif /* (!defined(CY_IP_M7CPUSS)) */
     }
     return (ret);
 }
@@ -1023,12 +1101,29 @@ static cy_en_em_eeprom_status_t WriteRow(
     if (0u != context->blockingWrite)
     {
         /* Does the blocking write */
+#if (defined(CY_IP_M7CPUSS))  /* XMC7xxx */
+        cy_en_flashdrv_status_t status;
+
+        status = Cy_Flash_EraseSector((uint32_t)rowAddr);
+        if (CY_FLASH_DRV_SUCCESS != status) {
+           return (ret);
+        }
+
+        status = WorkFlashProgramRow((uint32_t *) rowAddr, (uint8_t *) rowData);
+        if (CY_FLASH_DRV_SUCCESS != status) {
+           return (ret);
+        }
+
+        ret = CY_EM_EEPROM_SUCCESS;
+
+#else  /* (defined(CY_IP_M7CPUSS)) */
         if (CY_FLASH_DRV_SUCCESS == Cy_Flash_WriteRow((uint32_t)rowAddr, rowData))
         {
             ret = CY_EM_EEPROM_SUCCESS;
         }
+#endif /* (defined(CY_IP_M7CPUSS)) */
     }
-#if (!defined(CY_IP_M0S8CPUSSV3))  /* Not supported by PSoC 4 */
+#if (!(defined(CY_IP_M0S8CPUSSV3) || defined(CY_IP_M7CPUSS)))  /* Only for PSoC 6 */
     else
     {
         /* Initiates the write */
@@ -1037,7 +1132,7 @@ static cy_en_em_eeprom_status_t WriteRow(
             ret = WaitTillComplete();
         }
     }
-#endif /* !defined(CY_IP_M0S8CPUSSV3) */
+#endif /* (!(defined(CY_IP_M0S8CPUSSV3) || defined(CY_IP_M7CPUSS))) */
 
     return (ret);
 }
@@ -1070,7 +1165,7 @@ static cy_en_em_eeprom_status_t EraseRow(
                 const uint32_t * ramBuffAddr,
                 const cy_stc_eeprom_context_t * context)
 {
-#if (!defined(CY_IP_M0S8CPUSSV3))
+#if (!(defined(CY_IP_M0S8CPUSSV3) || defined(CY_IP_M7CPUSS)))  /* Only for PSoC 6 */
     cy_en_em_eeprom_status_t ret = CY_EM_EEPROM_WRITE_FAIL;
 
     (void)ramBuffAddr; /* To avoid the compiler warning */
@@ -1093,25 +1188,46 @@ static cy_en_em_eeprom_status_t EraseRow(
     }
 
     return(ret);
-#else /* !defined(CY_IP_M0S8CPUSSV3) */
+#else  /*  (!(defined(CY_IP_M0S8CPUSSV3) || defined(CY_IP_M7CPUSS))) */
     cy_en_em_eeprom_status_t ret = CY_EM_EEPROM_WRITE_FAIL;
+#if (defined(CY_IP_M7CPUSS))
+    cy_en_flashdrv_status_t status;
+#endif /* (defined(CY_IP_M7CPUSS)) */
 
     if (0u != context->blockingWrite)
     {
+        /* Does the blocking write */
+#if (defined(CY_IP_M7CPUSS))  /* XMC7xxx */
+
+        if (CY_FLASH_DRV_SUCCESS != Cy_Flash_EraseSector((uint32_t) rowAddr)) {
+           return (ret);
+        }
+        ret = CY_EM_EEPROM_SUCCESS;
+
+        if (0u == context->simpleMode)
+        {
+           status = WorkFlashProgramRow((uint32_t *) rowAddr, (uint8_t *) ramBuffAddr);
+           if (CY_FLASH_DRV_SUCCESS != status) {
+              ret = CY_EM_EEPROM_SUCCESS;  /* Ignoring Return Status till Jira: DRIVER-8247 is fixed */
+           }
+        }
+#else  /* (defined(CY_IP_M7CPUSS)) * PSoC 4 */
+
         /* Does the blocking write */
         if (CY_FLASH_DRV_SUCCESS == Cy_Flash_WriteRow((uint32_t)rowAddr, ramBuffAddr))
         {
             ret = CY_EM_EEPROM_SUCCESS;
         }
+#endif /* (defined(CY_IP_M7CPUSS)) */
     }
 
     return(ret);
 
-#endif /* !defined(CY_IP_M0S8CPUSSV3) */
+#endif  /*  (!(defined(CY_IP_M0S8CPUSSV3) || defined(CY_IP_M7CPUSS))) */
 }
 
 
-#if (!defined(CY_IP_M0S8CPUSSV3))  /* Not supported by PSoC 4 */
+#if (!(defined(CY_IP_M0S8CPUSSV3) || defined(CY_IP_M7CPUSS)))  /* Only for PSoC 6 */
 /*******************************************************************************
 * Function Name: WaitTillComplete
 ****************************************************************************//**
@@ -1150,7 +1266,7 @@ static cy_en_em_eeprom_status_t WaitTillComplete(void)
 
     return(ret);
 }
-#endif /* (!defined(CY_IP_M0S8CPUSSV3)) */
+#endif /* (!(defined(CY_IP_M0S8CPUSSV3) || defined(CY_IP_M7CPUSS))) */
 
 
 /*******************************************************************************
@@ -1192,7 +1308,14 @@ static uint32_t CalculateRowChecksum(const uint32_t * ptrRow)
 *******************************************************************************/
 static uint32_t GetStoredRowChecksum(const uint32_t * ptrRow)
 {
+#if (defined(CY_IP_M7CPUSS))  /* Not supported by XMC7xxx */
+    if (WorkFlashBlankCheck((uint32_t *)&ptrRow[CY_EM_EEPROM_HEADER_CHECKSUM_OFFSET_U32], 4)) {
+       return (0x00u);
+    }
     return (ptrRow[CY_EM_EEPROM_HEADER_CHECKSUM_OFFSET_U32]);
+#else /* (defined(CY_IP_M7CPUSS)) */
+    return (ptrRow[CY_EM_EEPROM_HEADER_CHECKSUM_OFFSET_U32]);
+#endif /* (defined(CY_IP_M7CPUSS)) */
 }
 
 
@@ -1213,10 +1336,26 @@ static cy_en_em_eeprom_status_t CheckRowChecksum(const uint32_t * ptrRow)
 {
     cy_en_em_eeprom_status_t ret = CY_EM_EEPROM_BAD_CHECKSUM;
 
+#if (defined(CY_IP_M7CPUSS))  /* Not supported by XMC7xxx */
+    uint8_t lc_buf[CY_EM_EEPROM_FLASH_SIZEOF_ROW];
+
+    if (WorkFlashBlankCheck((uint32_t *)ptrRow, CY_EM_EEPROM_FLASH_SIZEOF_ROW )) {
+       /* Fills the RAM buffer with flash data for the case when not a whole row is requested to be overwritten */
+       (void)memset((void *)lc_buf, 0, CY_EM_EEPROM_FLASH_SIZEOF_ROW);
+    } else {
+       (void)memcpy(lc_buf, ptrRow, CY_EM_EEPROM_FLASH_SIZEOF_ROW);
+    }
+    if (GetStoredRowChecksum(ptrRow) == CalculateRowChecksum((uint32_t *)lc_buf))
+    {
+        ret = CY_EM_EEPROM_SUCCESS;
+    }
+
+#else  /* (defined(CY_IP_M7CPUSS)) */
     if (GetStoredRowChecksum(ptrRow) == CalculateRowChecksum(ptrRow))
     {
         ret = CY_EM_EEPROM_SUCCESS;
     }
+#endif /* (defined(CY_IP_M7CPUSS)) */
 
     return (ret);
 }
@@ -1239,7 +1378,14 @@ static cy_en_em_eeprom_status_t CheckRowChecksum(const uint32_t * ptrRow)
 *******************************************************************************/
 static uint32_t GetStoredSeqNum(const uint32_t * ptrRow)
 {
+#if (defined(CY_IP_M7CPUSS))  /* Not supported by XMC7xxx */
+    if (WorkFlashBlankCheck((uint32_t *)&ptrRow[CY_EM_EEPROM_HEADER_SEQ_NUM_OFFSET_U32], 4)) {
+       return (0x00u);
+    }
     return (ptrRow[CY_EM_EEPROM_HEADER_SEQ_NUM_OFFSET_U32]);
+#else /* (defined(CY_IP_M7CPUSS)) */
+    return (ptrRow[CY_EM_EEPROM_HEADER_SEQ_NUM_OFFSET_U32]);
+#endif /* (defined(CY_IP_M7CPUSS)) */
 }
 
 
@@ -1538,6 +1684,7 @@ static cy_en_em_eeprom_status_t CopyHistoricData(
                              context->byteInRow);
                 /* Reports that the redundant copy was used */
                 ret = CY_EM_EEPROM_REDUNDANT_COPY_USED;
+
             }
         }
         if ((0u == GetStoredSeqNum(ptrRowRead)) && (0u == GetStoredRowChecksum(ptrRowRead)))
@@ -1574,7 +1721,7 @@ static cy_en_em_eeprom_status_t CopyHistoricData(
 * The pointer to the Em_EEPROM context structure \ref cy_stc_eeprom_context_t.
 *
 *******************************************************************************/
-static void CopyHeadersData(
+static cy_en_em_eeprom_status_t CopyHeadersData(
                 uint32_t * ptrRowWrite,
                 uint32_t * ptrRow,
                 const cy_stc_eeprom_context_t * context)
@@ -1596,6 +1743,11 @@ static void CopyHeadersData(
     if (numReads > GetStoredSeqNum(ptrRowWrite))
     {
         numReads = GetStoredSeqNum(ptrRowWrite);
+    }
+
+    if (context->numberOfRows <= 0)
+    {
+       return (CY_EM_EEPROM_WRITE_FAIL);
     }
 
     /* The address within the Em_EEPROM storage of historic data of the specified by the ptrRow row */
@@ -1661,7 +1813,182 @@ static void CopyHeadersData(
             }
         }
     }
+    return (CY_EM_EEPROM_SUCCESS);
 }
 
+#if (defined(CY_IP_M7CPUSS))  /* Not supported by XMC7xxx */
+
+/*******************************************************************************
+* Function Name: WorkFlashBlankCheck
+****************************************************************************//**
+*
+* Checks if XMC7xxx Work Flash is Blank/Erased state
+*
+* \param addr
+* The pointer to the Work Flash starting address to check for blank
+*
+* \param size
+* The size of the Work Flash to check from address passed
+*
+*
+*******************************************************************************/
+static int WorkFlashBlankCheck(uint32_t *addr, uint32_t size)
+{
+    cy_stc_flash_blankcheck_config_t config;
+    cy_en_flashdrv_status_t status;
+
+    config.addrToBeChecked = addr;
+    config.numOfWordsToBeChecked = size / 4;
+
+    status = Cy_Flash_BlankCheck(&config, CY_FLASH_DRIVER_BLOCKING);
+
+    if (status == CY_FLASH_DRV_SUCCESS) {
+       return (1);
+    } else {
+       return (0);
+    }
+}
+
+
+/*******************************************************************************
+* Function Name: WorkFlashProgramRow
+****************************************************************************//**
+*
+* Programs XMC7xxx Work Flash Sector from address provided
+*
+* \param addr
+* The XMC7xxx Work Flash Sector from addr
+*
+* \param data
+* The data to be programmed into the Work Flash Sector
+*
+*
+*******************************************************************************/
+
+#if defined(EEPROM_LARGE_SECTOR_WFLASH)
+#define PDL_USE_4096BIT       ( 1 )
+#else /* defined(EEPROM_LARGE_SECTOR_WFLASH) */
+#define PDL_USE_1024BIT       ( 1 )
+#endif /* defined(EEPROM_LARGE_SECTOR_WFLASH) */
+
+#if defined(PDL_USE_1024BIT)
+
+#define PDL_PROG_DATA_SIZE    (CY_FLASH_PROGRAMROW_DATA_SIZE_1024BIT)
+#define CUR_PG_SIZE_INCR      (128)
+#define CUR_ADDR_INCR         (0x20)
+#define CUR_DATA_INCR         (128)
+
+#endif
+
+#if defined(PDL_USE_4096BIT)
+
+#define PDL_PROG_DATA_SIZE    (CY_FLASH_PROGRAMROW_DATA_SIZE_4096BIT)
+#define CUR_PG_SIZE_INCR      (512)
+#define CUR_ADDR_INCR         (0x80)
+#define CUR_DATA_INCR         (512)
+
+#endif
+
+static cy_en_flashdrv_status_t WorkFlashProgramRow(uint32_t *addr, uint8_t *data)
+{
+    cy_stc_flash_programrow_config_t config;
+    cy_en_flashdrv_status_t status;
+    uint32_t *cur_addr = addr;
+    uint8_t  *cur_data = data;
+    uint32_t cur_pg_size = 0;
+    uint32_t cnt = 0;
+
+    config.blocking  =   CY_FLASH_PROGRAMROW_BLOCKING;
+    config.skipBC    =   CY_FLASH_PROGRAMROW_SKIP_BLANK_CHECK;
+    config.dataSize  =   PDL_PROG_DATA_SIZE;
+    config.dataLoc   =   CY_FLASH_PROGRAMROW_DATA_LOCATION_SRAM;
+    config.intrMask  =   CY_FLASH_PROGRAMROW_SET_INTR_MASK;
+
+    for (cur_pg_size = 0, cnt = 0; cur_pg_size < CY_EM_EEPROM_FLASH_SIZEOF_ROW;
+         cur_pg_size += CUR_PG_SIZE_INCR, cur_addr += CUR_ADDR_INCR, cur_data += CUR_DATA_INCR, cnt++)
+    {
+        config.destAddr  =   (const uint32_t *)cur_addr;
+        config.dataAddr  =   (const uint32_t *)cur_data;
+
+        status = Cy_Flash_Program_WorkFlash(&config);
+
+        if (status == CY_FLASH_DRV_SUCCESS) {
+        } else {
+           status = CY_FLASH_DRV_SUCCESS;    /* Ignoring Return Status till Jira: DRIVER-8247 is fixed */
+        }
+    }
+
+    return (status);
+}
+
+/*******************************************************************************
+* Function Name: WorkFlashBoundsCheck
+****************************************************************************//**
+*
+* Returns "true" if input address is inside of same work sector region,
+* otherwise returns "false".
+*
+* address_start Address to be checked
+* address_end   Address to be checked
+*
+* true - inside of same work sector region, false - Not in same work sector
+*
+*******************************************************************************/
+static bool WorkFlashBoundsCheck(uint32_t address_start, uint32_t address_end)
+{
+    cy_en_bankmode_t bankmode = Cy_Flashc_GetWorkBankMode();
+
+#if defined(EEPROM_LARGE_SECTOR_WFLASH)
+    if (bankmode == CY_FLASH_SINGLE_BANK_MODE)
+    {
+        if (((CY_WFLASH_LG_SBM_TOP <= address_start) && (address_start < CY_WFLASH_LG_SBM_END))
+           && ((CY_WFLASH_LG_SBM_TOP <= address_end) && (address_end < CY_WFLASH_LG_SBM_END)))
+        {
+            return(true);
+        }
+    }
+    else
+    {
+        if (((CY_WFLASH_LG_DBM0_TOP <= address_start) && (address_start < CY_WFLASH_LG_DBM0_END))
+           && ((CY_WFLASH_LG_DBM0_TOP <= address_end) && (address_end < CY_WFLASH_LG_DBM0_END)))
+        {
+            return(true);
+        }
+
+        if (((CY_WFLASH_LG_DBM1_TOP <= address_start) && (address_start < CY_WFLASH_LG_DBM1_END))
+           && ((CY_WFLASH_LG_DBM1_TOP <= address_end) && (address_end < CY_WFLASH_LG_DBM1_END)))
+        {
+            return(true);
+        }
+    }
+#else /* defined(EEPROM_LARGE_SECTOR_WFLASH) */
+    if (bankmode == CY_FLASH_SINGLE_BANK_MODE)
+    {
+        if (((CY_WFLASH_SM_SBM_TOP <= address_start) && (address_start < CY_WFLASH_SM_SBM_END))
+           && ((CY_WFLASH_SM_SBM_TOP <= address_end) && (address_end < CY_WFLASH_SM_SBM_END)))
+        {
+            return(true);
+        }
+    }
+    else
+    {
+        if (((CY_WFLASH_SM_DBM0_TOP <= address_start) && (address_start < CY_WFLASH_SM_DBM0_END))
+           && ((CY_WFLASH_SM_DBM0_TOP <= address_end) && (address_end < CY_WFLASH_SM_DBM0_END)))
+        {
+            return(true);
+        }
+
+        if (((CY_WFLASH_SM_DBM1_TOP <= address_start) && (address_start < CY_WFLASH_SM_DBM1_END))
+           && ((CY_WFLASH_SM_DBM1_TOP <= address_end) && (address_end < CY_WFLASH_SM_DBM1_END)))
+        {
+            return(true);
+        }
+    }
+#endif /* defined(EEPROM_LARGE_SECTOR_WFLASH) */
+
+    return(false);
+}
+
+#endif /* (defined(CY_IP_M7CPUSS)) */
 
 /* [] END OF FILE */

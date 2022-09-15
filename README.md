@@ -11,6 +11,10 @@ Use the Emulated EEPROM to store nonvolatile data on a target device, with wear 
 * Optional Wear Leveling
 * Optional Redundant Data storage
 
+### XMC7xxx specific differences
+* Emulated EEPROM has to be used with XMC7xxx Work Flash and not Code Flash.
+* XMC7xxx provides Work Flash with Small Sector size or Large sector size. By default the library supports small sector work flash. To use large sector work flash sector work flash, please user Emulated EEPROM personality or add "EEPROM_LARGE_SECTOR_WFLASH" to DEFINES= in Makefile. The middleware build verifies the selected Work flash region and mapped flash address passed to initialization function.
+
 ### Quick Start
 Refer to the [API Reference Guide Quick Start Guide](https://cypresssemiconductorco.github.io/emeeprom/em_eeprom_api_reference_manual/html/index.html#section_em_eeprom_quick_start) section for step-by-step instruction how to enable the Emulated EEPROM Middleware Library.
 
