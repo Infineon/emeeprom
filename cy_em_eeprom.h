@@ -1,6 +1,6 @@
 /*******************************************************************************
 * \file cy_em_eeprom.h
-* \version 2.10
+* \version 2.20
 *
 * \brief
 * This file provides the function prototypes and constants for the
@@ -20,9 +20,9 @@
 * \mainpage Em_EEPROM Middleware Library
 *
 * The Emulated EEPROM (Em_EEPROM) middleware emulates an EEPROM storage in
-* PSoC's internal flash memory. The Em_EEPROM middleware operates on the top
-* of the flash driver included in the Peripheral Driver Library
-* (mtb-pdl-cat1 or mtb-pdl-cat2).
+* PSoC's internal flash memory or in XMC7xxx and T2G-B-H internal Work flash
+* memory. The Em_EEPROM middleware operates on the top of the flash driver
+* included in the Peripheral Driver Library (mtb-pdl-cat1 or mtb-pdl-cat2).
 *
 * Use the Em_EEPROM to store non-volatile data on a target device when
 * increasing flash memory endurance and restoring corrupted data from
@@ -70,6 +70,9 @@
 * * in the auxiliary flash
 * * in the application flash at a fixed address.
 *
+* Note: refer to device capabilities for supported storage location for
+* EM_EEPROM data.
+*
 * The \ref section_em_eeprom_configuration_considerations section provides
 * the guidance for all these operation modes and use cases.
 * You may also want to migrate from PSoC Creator to ModusToolbox
@@ -80,6 +83,28 @@
 * when the Em_EEPROM data is located in the application flash, and the
 * Em_EEPROM is configured to increase the flash endurance
 * (the wearLevelingFactor parameter is turned on).
+*
+********************************************************************************
+* \section section_em_eeprom_xmc7xxx XMC7xxx and T2G-B-H Em_EEPROM storage restrictions
+********************************************************************************
+*
+* XMC7xxx and T2G-B-H based devices support Em_EEPROM Data only in "Work Flash".
+* The "Work Flash" provides sectors with 2 sizes namely: Large (2 kbytes) and
+* Small (128 bytes). The user should select which type of Work FLash region
+* will be used for Em_EEPROM storage. The default assumes use of small sector
+* work flash. To use large sector work flash, the user can use EEPROM personality
+* or edit application Makefile.
+*
+* Using EEPROM Personality:
+* The EEPROM personality has checkbox for:
+* "Work Flash Sector Selection default Small Sector"
+* which is "checked" by default. To use Large sector work flash, uncheck this box.
+*
+* Using application Makefile:
+* To use large sector work flash add "EEPROM_LARGE_SECTOR_WFLASH" to DEFINES in
+* application Makefile as shown below.
+*
+* DEFINES=EEPROM_LARGE_SECTOR_WFLASH
 *
 ********************************************************************************
 * \section section_em_eeprom_quick_start Quick Start Guide
@@ -233,12 +258,21 @@
 * The user is responsible for allocating space in flash for Em_EEPROM
 * (further the Em_EEPROM storage).
 *
-* The Em_EEPROM storage can be placed:
+* For PSoC 6 the Em_EEPROM storage can be placed:
 * * in the application flash
 * * in the auxiliary flash.
 *
 * Additionally, the storage can be placed at a fixed address in the
 * application flash.
+*
+* For PSoC 4 the Em_EEPROM storage can be placed:
+* * in the application flash
+*
+* Additionally, the storage can be placed at a fixed address in the
+* application flash.
+*
+* For XMC7xxx and T2G-B-H the Em_EEPROM storage can be placed:
+* * in the Work Flash region
 *
 * The storage location must be aligned to \ref CY_EM_EEPROM_FLASH_SIZEOF_ROW.
 *
@@ -645,27 +679,27 @@
 *   </tr>
 *   <tr>
 *     <td>ModusToolbox Software Environment</td>
-*     <td>2.3</td>
+*     <td>3.0</td>
 *   </tr>
 *   <tr>
 *     <td>CAT1 Peripheral Driver Library (mtb-pdl-cat1)</td>
-*     <td>2.2.1</td>
+*     <td>3.0.0</td>
 *   </tr>
 *   <tr>
 *     <td>CAT2 Peripheral Driver Library (mtb-pdl-cat2)</td>
-*     <td>1.3.0</td>
+*     <td>2.0.0</td>
 *   </tr>
 *   <tr>
 *     <td>GCC Compiler</td>
-*     <td>9.3.1</td>
+*     <td>10.3.1</td>
 *   </tr>
 *   <tr>
 *     <td>IAR Compiler</td>
-*     <td>8.42.2</td>
+*     <td>9.30.1</td>
 *   </tr>
 *   <tr>
 *     <td>Arm Compiler 6</td>
-*     <td>6.13</td>
+*     <td>6.16</td>
 *   </tr>
 *   <tr>
 *     <td>Mbed OS</td>
@@ -673,13 +707,16 @@
 *   </tr>
 *   <tr>
 *     <td>FreeRTOS</td>
-*     <td>10.3.1</td>
+*     <td>10.4.3</td>
 *   </tr>
 * </table>
 *
 ********************************************************************************
-* \section section_em_eeprom_MISRA MISRA-C Compliance
+* \section section_em_eeprom_MISRA MISRA-C, 2012 Compliance
 ********************************************************************************
+*
+* There are no high or medium severity compliance issues for this asset. Listed
+* below are the deviations for minor issues.
 *
 * The Cy_Em_EEPROM library's specific deviations:
 *
@@ -697,12 +734,6 @@
 *     <td>Following naming convention for static functions.</td>
 *   </tr>
 *   <tr>
-*     <td>8.13</td>
-*     <td>A</td>
-*     <td>A pointer should point to a const-qualified type whenever possible</td>
-*     <td>const pointer is used in most cases.</td>
-*   </tr>
-*   <tr>
 *     <td>11.5</td>
 *     <td>A</td>
 *     <td>Typecast of void pointer should be avoided.</td>
@@ -716,6 +747,18 @@
 *
 * <table class="doxtable">
 *   <tr><th>Version</th><th>Changes</th><th>Reason for Change</th></tr>
+*   <tr>
+*     <td rowspan="3">2.20</td>
+*     <td colspan="2">The Em_EEPROM 2.20 adds support for XMC 7xxx and T2G-B-H devices.
+*         </td>
+*   </tr>
+*   <tr>
+*     <td>Updated major and minor version defines</td>
+*     <td>Follow naming convention</td>
+*   </tr>
+*   <tr>
+*     <td>Updated documentation</td>
+*   </tr>
 *   <tr>
 *     <td rowspan="4">2.10</td>
 *     <td colspan="2">The Em_EEPROM 2.10 adds support for PSoC 4 devices.
@@ -840,6 +883,10 @@
 *      <b>PSoC 63 with BLE Datasheet Programmable System-on-Chip datasheet</b>
 *   </a>
 *
+* * <a href="http://www.cypress.com/psoc4">
+*      <b>PSoC 4 Product Reference</b>
+*   </a>
+*
 * \note
 * The links to the other software component's documentation (middleware and PDL)
 * point to GitHub to the latest available version of the software.
@@ -874,6 +921,9 @@
 #include <stddef.h>
 #include "cy_device_headers.h"
 #include "cy_syslib.h"
+#if (defined(CY_IP_M7CPUSS))  /* XMC7xxx, T2G-B-H */
+#include "cycfg.h"
+#endif /* (defined(CY_IP_M7CPUSS))  XMC7xxx, T2G-B-H */
 #include "cy_flash.h"
 
 /* The C binding of definitions if building with the C++ compiler */
@@ -893,7 +943,7 @@ extern "C" {
 #define CY_EM_EEPROM_MW_VERSION_MAJOR       (2)
 
 /** Library minor version */
-#define CY_EM_EEPROM_MW_VERSION_MINOR       (10)
+#define CY_EM_EEPROM_MW_VERSION_MINOR       (20)
 
 /** Em_EEPROM PDL ID */
 #define CY_EM_EEPROM_ID                     (CY_PDL_DRV_ID(0x1BuL))
@@ -901,8 +951,24 @@ extern "C" {
 /** A prefix for Em_EEPROM function error return-values */
 #define CY_EM_EEPROM_ID_ERROR               ((uint32_t)(CY_EM_EEPROM_ID | CY_PDL_STATUS_ERROR))
 
+#if (!defined(CY_IP_M7CPUSS))  /* For PSoC 4/6 */
+
 /** Defines the size of a flash row */
 #define CY_EM_EEPROM_FLASH_SIZEOF_ROW       (CY_FLASH_SIZEOF_ROW)
+
+#else /* (!defined(CY_IP_M7CPUSS)) */
+
+#ifdef EEPROM_LARGE_SECTOR_WFLASH
+
+#define CY_EM_EEPROM_FLASH_SIZEOF_ROW       (CY_WORK_LES_SIZE_IN_BYTE)
+
+#else /* EEPROM_LARGE_SECTOR_WFLASH */
+
+#define CY_EM_EEPROM_FLASH_SIZEOF_ROW       (CY_WORK_SES_SIZE_IN_BYTE)
+
+#endif /* EEPROM_LARGE_SECTOR_WFLASH */
+
+#endif /* (!defined(CY_IP_M7CPUSS)) */
 
 /** Defines the maximum data length that can be stored in one flash row */
 #define CY_EM_EEPROM_EEPROM_DATA_LEN(simpleMode) \
@@ -989,7 +1055,8 @@ typedef struct
     * non-blocking writes are the same - the difference is that the
     * non-blocking writes do not block the interrupts.
     *
-    * \note Non-blocking flash write is not supported by PSoC 4 device family.
+    * \note Non-blocking flash write is only supported by PSoC 6 and not
+    * PSoC 4, XMC 7xxx device families.
     */
     uint8_t blockingWrite;
 
@@ -1123,6 +1190,7 @@ uint32_t Cy_Em_EEPROM_NumWrites(
 
 #define CY_EM_EEPROM_FLASH_END_ADDR                 (CY_EM_EEPROM_FLASH_BASE_ADDR + CY_EM_EEPROM_FLASH_SIZE)
 
+#if (!defined(CY_IP_M7CPUSS))  /* Not supported by XMC7xxx and T2G-B-H */
 /* PSoC 6 has EM_EEPROM flash region */
 #if (defined(CY_EM_EEPROM_BASE))
 /* Checks whether Em_EEPROM is in the flash range. */
@@ -1134,6 +1202,7 @@ uint32_t Cy_Em_EEPROM_NumWrites(
 #define CY_EM_EEPROM_IS_IN_FLASH_RANGE(startAddr, endAddr) \
                     ((((startAddr) > CY_EM_EEPROM_FLASH_BASE_ADDR) && ((endAddr) <= CY_EM_EEPROM_FLASH_END_ADDR)))
 #endif /* (defined(CY_EM_EEPROM_BASE)) */
+#endif /* (!defined(CY_IP_M7CPUSS)) */
 
 /* Defines the length of data that can be stored in the Em_EEPROM header. */
 #define CY_EM_EEPROM_HEADER_DATA_LEN                ((CY_EM_EEPROM_FLASH_SIZEOF_ROW / 2u) - 16u)
@@ -1175,7 +1244,7 @@ uint32_t Cy_Em_EEPROM_NumWrites(
 #define CY_EM_EEPROM_HEADER_ADDR_OFFSET_U32         (2u)
 #define CY_EM_EEPROM_HEADER_LEN_OFFSET_U32          (3u)
 #define CY_EM_EEPROM_HEADER_DATA_OFFSET_U32         (4u)
-#define CY_EM_EEPROM_FLASH_SIZEOF_ROW_U32           (CY_FLASH_SIZEOF_ROW / 4u)
+#define CY_EM_EEPROM_FLASH_SIZEOF_ROW_U32           (CY_EM_EEPROM_FLASH_SIZEOF_ROW / 4u)
 
 /* The same offsets as above used for direct memory addressing. */
 #define CY_EM_EEPROM_HISTORIC_DATA_OFFSET           (CY_EM_EEPROM_FLASH_SIZEOF_ROW / 2u)

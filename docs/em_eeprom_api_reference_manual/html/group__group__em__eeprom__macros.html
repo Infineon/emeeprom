@@ -6,7 +6,7 @@
 <meta http-equiv="X-UA-Compatible" content="IE=9"/>
 <meta name="generator" content="Doxygen 1.8.13"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Em_EEPROM Middleware Library 2.10: Macros</title>
+<title>Em_EEPROM Middleware Library 2.20: Macros</title>
 <link href="tabs.css" rel="stylesheet" type="text/css"/>
 <script type="text/javascript" src="jquery.js"></script>
 <script type="text/javascript" src="dynsections.js"></script>
@@ -30,7 +30,7 @@
  <tr style="height: 56px;">
   <td id="projectlogo"><a href="http://www.cypress.com/"><img alt="Logo" src="infineon_logo.png"/></a></td>
   <td id="projectalign" style="padding-left: 0.5em;">
-   <div id="projectname">Em_EEPROM Middleware Library 2.10</div>
+   <div id="projectname">Em_EEPROM Middleware Library 2.20</div>
   </td>
  </tr>
  </tbody>
@@ -96,7 +96,7 @@ Macros</h2></td></tr>
 <tr class="memdesc:gab0bf9bfb139a2298c6178b8e801c9614"><td class="mdescLeft">&#160;</td><td class="mdescRight">Library major version. <br /></td></tr>
 <tr class="separator:gab0bf9bfb139a2298c6178b8e801c9614"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ga15ba88c4930fbc76af0863e9aa2c7ece"><td class="memItemLeft" align="right" valign="top"><a id="ga15ba88c4930fbc76af0863e9aa2c7ece"></a>
-#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__group__em__eeprom__macros.html#ga15ba88c4930fbc76af0863e9aa2c7ece">CY_EM_EEPROM_MW_VERSION_MINOR</a>&#160;&#160;&#160;(10)</td></tr>
+#define&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="group__group__em__eeprom__macros.html#ga15ba88c4930fbc76af0863e9aa2c7ece">CY_EM_EEPROM_MW_VERSION_MINOR</a>&#160;&#160;&#160;(20)</td></tr>
 <tr class="memdesc:ga15ba88c4930fbc76af0863e9aa2c7ece"><td class="mdescLeft">&#160;</td><td class="mdescRight">Library minor version. <br /></td></tr>
 <tr class="separator:ga15ba88c4930fbc76af0863e9aa2c7ece"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ga2ad924c909a5cf17ed0a6b9e78b674b6"><td class="memItemLeft" align="right" valign="top"><a id="ga2ad924c909a5cf17ed0a6b9e78b674b6"></a>
@@ -152,7 +152,7 @@ Macros</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-<b>Value:</b><div class="fragment"><div class="line">(<a class="code" href="group__group__em__eeprom__macros.html#ga52c814cb9edacaf616d9e467480220b1">CY_EM_EEPROM_GET_NUM_ROWS_IN_EEPROM</a>(dataSize, simpleMode) * \</div><div class="line">                CY_EM_EEPROM_FLASH_SIZEOF_ROW)</div><div class="ttc" id="group__group__em__eeprom__macros_html_ga52c814cb9edacaf616d9e467480220b1"><div class="ttname"><a href="group__group__em__eeprom__macros.html#ga52c814cb9edacaf616d9e467480220b1">CY_EM_EEPROM_GET_NUM_ROWS_IN_EEPROM</a></div><div class="ttdeci">#define CY_EM_EEPROM_GET_NUM_ROWS_IN_EEPROM(dataSize, simpleMode)</div><div class="ttdoc">The number of flash rows required to create an Em_EEPROM of dataSize. </div><div class="ttdef"><b>Definition:</b> cy_em_eeprom.h:912</div></div>
+<b>Value:</b><div class="fragment"><div class="line">(<a class="code" href="group__group__em__eeprom__macros.html#ga52c814cb9edacaf616d9e467480220b1">CY_EM_EEPROM_GET_NUM_ROWS_IN_EEPROM</a>(dataSize, simpleMode) * \</div><div class="line">                CY_EM_EEPROM_FLASH_SIZEOF_ROW)</div><div class="ttc" id="group__group__em__eeprom__macros_html_ga52c814cb9edacaf616d9e467480220b1"><div class="ttname"><a href="group__group__em__eeprom__macros.html#ga52c814cb9edacaf616d9e467480220b1">CY_EM_EEPROM_GET_NUM_ROWS_IN_EEPROM</a></div><div class="ttdeci">#define CY_EM_EEPROM_GET_NUM_ROWS_IN_EEPROM(dataSize, simpleMode)</div><div class="ttdoc">The number of flash rows required to create an Em_EEPROM of dataSize. </div><div class="ttdef"><b>Definition:</b> cy_em_eeprom.h:978</div></div>
 </div><!-- fragment -->
 <p>Defines the size of flash without wear leveling and redundant copy overhead. </p>
 
@@ -195,7 +195,7 @@ Macros</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
-<b>Value:</b><div class="fragment"><div class="line">(<a class="code" href="group__group__em__eeprom__macros.html#ga1362fc2cdec8a779fb71f9db031f8df5">CY_EM_EEPROM_GET_NUM_DATA</a>(dataSize, simpleMode) * \</div><div class="line">                ((((1uL - (simpleMode)) * (wearLeveling)) * ((redundantCopy) + 1uL)) + (simpleMode)))</div><div class="ttc" id="group__group__em__eeprom__macros_html_ga1362fc2cdec8a779fb71f9db031f8df5"><div class="ttname"><a href="group__group__em__eeprom__macros.html#ga1362fc2cdec8a779fb71f9db031f8df5">CY_EM_EEPROM_GET_NUM_DATA</a></div><div class="ttdeci">#define CY_EM_EEPROM_GET_NUM_DATA(dataSize, simpleMode)</div><div class="ttdoc">Defines the size of flash without wear leveling and redundant copy overhead. </div><div class="ttdef"><b>Definition:</b> cy_em_eeprom.h:916</div></div>
+<b>Value:</b><div class="fragment"><div class="line">(<a class="code" href="group__group__em__eeprom__macros.html#ga1362fc2cdec8a779fb71f9db031f8df5">CY_EM_EEPROM_GET_NUM_DATA</a>(dataSize, simpleMode) * \</div><div class="line">                ((((1uL - (simpleMode)) * (wearLeveling)) * ((redundantCopy) + 1uL)) + (simpleMode)))</div><div class="ttc" id="group__group__em__eeprom__macros_html_ga1362fc2cdec8a779fb71f9db031f8df5"><div class="ttname"><a href="group__group__em__eeprom__macros.html#ga1362fc2cdec8a779fb71f9db031f8df5">CY_EM_EEPROM_GET_NUM_DATA</a></div><div class="ttdeci">#define CY_EM_EEPROM_GET_NUM_DATA(dataSize, simpleMode)</div><div class="ttdoc">Defines the size of flash without wear leveling and redundant copy overhead. </div><div class="ttdef"><b>Definition:</b> cy_em_eeprom.h:982</div></div>
 </div><!-- fragment -->
 <p>Returns the size of flash allocated for Em_EEPROM including wear leveling and a redundant copy overhead. </p>
 
@@ -207,7 +207,7 @@ Macros</h2></td></tr>
 <div id="nav-path" class="navpath">
     <ul>
         <li class="footer">
-            Generated for <b>Em_EEPROM Middleware Library 2.10</b> by <b>Cypress Semiconductor Corporation</b>.
+            Generated for <b>Em_EEPROM Middleware Library 2.20</b> by <b>Cypress Semiconductor Corporation</b>.
             All rights reserved.
         </li>
     </ul>

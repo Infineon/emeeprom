@@ -1,8 +1,9 @@
 var NAVTREE =
 [
-  [ "Em_EEPROM Middleware Library 2.10", "index.html", [
+  [ "Em_EEPROM Middleware Library 2.20", "index.html", [
     [ "Em_EEPROM Middleware Library", "index.html", [
       [ "General Description", "index.html#section_em_eeprom_general_description", null ],
+      [ "XMC7xxx and T2G-B-H Em_EEPROM storage restrictions", "index.html#section_em_eeprom_xmc7xxx", null ],
       [ "Quick Start Guide", "index.html#section_em_eeprom_quick_start", null ],
       [ "Configuration Considerations", "index.html#section_em_eeprom_configuration_considerations", [
         [ "Operating Modes", "index.html#section_em_eeprom_operating_modes", [
@@ -27,7 +28,7 @@ var NAVTREE =
         ] ]
       ] ],
       [ "Supported Software and Tools", "index.html#section_em_eeprom_toolchain", null ],
-      [ "MISRA-C Compliance", "index.html#section_em_eeprom_MISRA", null ],
+      [ "MISRA-C, 2012 Compliance", "index.html#section_em_eeprom_MISRA", null ],
       [ "Changelog", "index.html#section_em_eeprom_changelog", null ],
       [ "More Information", "index.html#section_em_eeprom_more_information", null ]
     ] ],
