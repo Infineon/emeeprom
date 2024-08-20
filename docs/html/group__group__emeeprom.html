@@ -182,7 +182,7 @@ Quick Start Guide</h1>
 <div class="line">    {</div>
 <div class="line">        <span class="comment">//Error check action</span></div>
 <div class="line">    }</div>
-<div class="ttc" id="agroup__group__emeeprom_html_gab9f608d788f1a854b10c652c3bb00fdd"><div class="ttname"><a href="group__group__emeeprom.html#gab9f608d788f1a854b10c652c3bb00fdd">Cy_Em_EEPROM_Init</a></div><div class="ttdeci">cy_en_em_eeprom_status_t Cy_Em_EEPROM_Init(const cy_stc_eeprom_config_t *config, cy_stc_eeprom_context_t *context)</div><div class="ttdoc">This function was the entry point up until version 2.20.</div><div class="ttdef"><b>Definition:</b> cy_em_eeprom.c:79</div></div>
+<div class="ttc" id="agroup__group__emeeprom_html_gab9f608d788f1a854b10c652c3bb00fdd"><div class="ttname"><a href="group__group__emeeprom.html#gab9f608d788f1a854b10c652c3bb00fdd">Cy_Em_EEPROM_Init</a></div><div class="ttdeci">cy_en_em_eeprom_status_t Cy_Em_EEPROM_Init(const cy_stc_eeprom_config_t *config, cy_stc_eeprom_context_t *context)</div><div class="ttdoc">This function was the entry point up until version 2.20.</div><div class="ttdef"><b>Definition:</b> cy_em_eeprom.c:81</div></div>
 </div><!-- fragment --> or <div class="fragment"><div class="line">    <span class="comment">/* Example showcasing the initialization of a block storage device object based on HAL NVM */</span></div>
 <div class="line">    mtb_block_storage_t my_bsd;</div>
 <div class="line">    <span class="keywordflow">if</span> (CY_RSLT_SUCCESS == mtb_block_storage_nvm_create(&amp;my_bsd))</div>
@@ -196,7 +196,7 @@ Quick Start Guide</h1>
 <div class="line">    {</div>
 <div class="line">        <span class="comment">//Error check action</span></div>
 <div class="line">    }</div>
-<div class="ttc" id="agroup__group__emeeprom_html_ga4002a38fb2fd80487dc58eb4518a471f"><div class="ttname"><a href="group__group__emeeprom.html#ga4002a38fb2fd80487dc58eb4518a471f">Cy_Em_EEPROM_Init_BD</a></div><div class="ttdeci">cy_en_em_eeprom_status_t Cy_Em_EEPROM_Init_BD(const cy_stc_eeprom_config2_t *config, cy_stc_eeprom_context_t *context, mtb_block_storage_t *block_device)</div><div class="ttdoc">Initializes the Emulated EEPROM library by filling the context structure.</div><div class="ttdef"><b>Definition:</b> cy_em_eeprom.c:111</div></div>
+<div class="ttc" id="agroup__group__emeeprom_html_ga4002a38fb2fd80487dc58eb4518a471f"><div class="ttname"><a href="group__group__emeeprom.html#ga4002a38fb2fd80487dc58eb4518a471f">Cy_Em_EEPROM_Init_BD</a></div><div class="ttdeci">cy_en_em_eeprom_status_t Cy_Em_EEPROM_Init_BD(const cy_stc_eeprom_config2_t *config, cy_stc_eeprom_context_t *context, mtb_block_storage_t *block_device)</div><div class="ttdoc">Initializes the Emulated EEPROM library by filling the context structure.</div><div class="ttdef"><b>Definition:</b> cy_em_eeprom.c:113</div></div>
 </div><!-- fragment --> or <div class="fragment"><div class="line">    <span class="comment">/* Example showcasing the initialization of a block storage device object based on HAL NVM */</span></div>
 <div class="line">    mtb_block_storage_t my_bsd;</div>
 <div class="line">    <span class="keywordflow">if</span> (CY_RSLT_SUCCESS == mtb_block_storage_cat2_create(&amp;my_bsd))</div>
@@ -220,13 +220,13 @@ Quick Start Guide</h1>
 <div class="line">    {</div>
 <div class="line">        <span class="comment">//Error check action</span></div>
 <div class="line">    }</div>
-<div class="ttc" id="agroup__group__emeeprom_html_ga9e14084e3054f6f147004d2914f9216d"><div class="ttname"><a href="group__group__emeeprom.html#ga9e14084e3054f6f147004d2914f9216d">Cy_Em_EEPROM_Read</a></div><div class="ttdeci">cy_en_em_eeprom_status_t Cy_Em_EEPROM_Read(uint32_t addr, void *eepromData, uint32_t size, cy_stc_eeprom_context_t *context)</div><div class="ttdoc">Reads data from a specified location.</div><div class="ttdef"><b>Definition:</b> cy_em_eeprom.c:185</div></div>
-<div class="ttc" id="agroup__group__emeeprom_html_gaa792ff05d2b6ee71b44f1faeb2b68886"><div class="ttname"><a href="group__group__emeeprom.html#gaa792ff05d2b6ee71b44f1faeb2b68886">Cy_Em_EEPROM_Write</a></div><div class="ttdeci">cy_en_em_eeprom_status_t Cy_Em_EEPROM_Write(uint32_t addr, const void *eepromData, uint32_t size, cy_stc_eeprom_context_t *context)</div><div class="ttdoc">Writes data to a specified location.</div><div class="ttdef"><b>Definition:</b> cy_em_eeprom.c:470</div></div>
+<div class="ttc" id="agroup__group__emeeprom_html_ga9e14084e3054f6f147004d2914f9216d"><div class="ttname"><a href="group__group__emeeprom.html#ga9e14084e3054f6f147004d2914f9216d">Cy_Em_EEPROM_Read</a></div><div class="ttdeci">cy_en_em_eeprom_status_t Cy_Em_EEPROM_Read(uint32_t addr, void *eepromData, uint32_t size, cy_stc_eeprom_context_t *context)</div><div class="ttdoc">Reads data from a specified location.</div><div class="ttdef"><b>Definition:</b> cy_em_eeprom.c:191</div></div>
+<div class="ttc" id="agroup__group__emeeprom_html_gaa792ff05d2b6ee71b44f1faeb2b68886"><div class="ttname"><a href="group__group__emeeprom.html#gaa792ff05d2b6ee71b44f1faeb2b68886">Cy_Em_EEPROM_Write</a></div><div class="ttdeci">cy_en_em_eeprom_status_t Cy_Em_EEPROM_Write(uint32_t addr, const void *eepromData, uint32_t size, cy_stc_eeprom_context_t *context)</div><div class="ttdoc">Writes data to a specified location.</div><div class="ttdef"><b>Definition:</b> cy_em_eeprom.c:476</div></div>
 </div><!-- fragment --> and <div class="fragment"><div class="line">    <span class="keywordflow">if</span> (CY_RSLT_SUCCESS != <a class="code hl_function" href="group__group__emeeprom.html#gad61dbc3c01d2bbf96e0c0d5b6d2e0b61">Cy_Em_EEPROM_Erase</a>(&amp;eepromContext))</div>
 <div class="line">    {</div>
 <div class="line">        <span class="comment">//Error check action</span></div>
 <div class="line">    }</div>
-<div class="ttc" id="agroup__group__emeeprom_html_gad61dbc3c01d2bbf96e0c0d5b6d2e0b61"><div class="ttname"><a href="group__group__emeeprom.html#gad61dbc3c01d2bbf96e0c0d5b6d2e0b61">Cy_Em_EEPROM_Erase</a></div><div class="ttdeci">cy_en_em_eeprom_status_t Cy_Em_EEPROM_Erase(cy_stc_eeprom_context_t *context)</div><div class="ttdoc">This function erases the entire content of Em_EEPROM.</div><div class="ttdef"><b>Definition:</b> cy_em_eeprom.c:706</div></div>
+<div class="ttc" id="agroup__group__emeeprom_html_gad61dbc3c01d2bbf96e0c0d5b6d2e0b61"><div class="ttname"><a href="group__group__emeeprom.html#gad61dbc3c01d2bbf96e0c0d5b6d2e0b61">Cy_Em_EEPROM_Erase</a></div><div class="ttdeci">cy_en_em_eeprom_status_t Cy_Em_EEPROM_Erase(cy_stc_eeprom_context_t *context)</div><div class="ttdoc">This function erases the entire content of Em_EEPROM.</div><div class="ttdef"><b>Definition:</b> cy_em_eeprom.c:708</div></div>
 </div><!-- fragment --></li>
 </ol>
 <h1><a class="anchor" id="section_em_eeprom_configuration_considerations"></a>

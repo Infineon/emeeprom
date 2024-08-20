@@ -1499,12 +1499,7 @@ uint32_t Cy_Em_EEPROM_NumWrites(cy_stc_eeprom_context_t* context);
 #define CY_EM_EEPROM_VERSION_MINOR                  (CY_EM_EEPROM_MW_VERSION_MINOR)
 
 
-#if (!defined(CY_IP_M7CPUSS))  /* For PSoC 4/6 and all Flash based devices */
-
-/** Defines the size of a flash row */
-#define CY_EM_EEPROM_FLASH_SIZEOF_ROW       (CY_FLASH_SIZEOF_ROW)
-
-#else /* (!defined(CY_IP_M7CPUSS)) */
+#if (CPUSS_FLASHC_ECT == 1)
 
 #ifdef EEPROM_LARGE_SECTOR_WFLASH
 
@@ -1516,7 +1511,20 @@ uint32_t Cy_Em_EEPROM_NumWrites(cy_stc_eeprom_context_t* context);
 
 #endif /* EEPROM_LARGE_SECTOR_WFLASH */
 
-#endif /* (!defined(CY_IP_M7CPUSS)) */
+#elif ((CY_IP_MXS22RRAMC_INSTANCES) > 0)
+//The information analog to other devices would be CY_RRAM_BLOCK_SIZE_BYTES
+//but that is too small to be used for EEPROM so in RRAM based devices the
+//row size is computed as the minimum row size or the closest multiple of
+//CY_RRAM_BLOCK_SIZE_BYTES that is bigger than minimum row size.
+#define CY_EM_EEPROM_FLASH_SIZEOF_ROW       \
+    ((((CY_EM_EEPROM_MINIMUM_ROW_SIZE - 1) / CY_RRAM_BLOCK_SIZE_BYTES) + 1) * CY_RRAM_BLOCK_SIZE_BYTES)
+
+#else /* For PSoC 4/6 and all Flash based devices */
+
+/** Defines the size of a flash row */
+#define CY_EM_EEPROM_FLASH_SIZEOF_ROW       (CY_FLASH_SIZEOF_ROW)
+
+#endif /* (CPUSS_FLASHC_ECT == 1) */
 
 /** Defines the maximum data length that can be stored in one flash row */
 #define CY_EM_EEPROM_EEPROM_DATA_LEN(simpleMode) \

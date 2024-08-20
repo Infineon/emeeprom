@@ -27,6 +27,8 @@
 * Global variables
 *******************************************************************************/
 static mtb_block_storage_t _mtb_emeeprom_bsd;
+//Global RAM buffer to avoid stack corruption */
+static uint32_t writeRamBuffer[CY_EM_EEPROM_MAXIMUM_ROW_SIZE / 4];
 
 /*******************************************************************************
 * Private Function Prototypes
@@ -128,12 +130,16 @@ cy_en_em_eeprom_status_t Cy_Em_EEPROM_Init_BD(
         /* Stores frequently used data for internal use */
         ComputeEEPROMProgramSize(context);
 
+        /* Check if simpleMode is enabled */
         if (context->simpleMode == 1)
         {
+            /* If yes, then the whole row will be dedicated to data*/
             context->byteInRow = context->rowSize;
         }
         else
         {
+            /* If not, half the row will be dedicated to data and
+                the other half to headers.*/
             context->byteInRow = context->rowSize / 2;
         }
 
@@ -528,8 +534,6 @@ static cy_en_em_eeprom_status_t WriteSimpleMode(
     const uint8_t* ptrUserData_p = eepromData;
     uint32_t ptrUserData = (uint32_t)ptrUserData_p;
 
-    uint32_t writeRamBuffer[CY_EM_EEPROM_MAXIMUM_ROW_SIZE / 4];
-
     uint32_t lc_size = size;
 
     while (wrCnt < numWrites)
@@ -620,8 +624,6 @@ static cy_en_em_eeprom_status_t WriteExtendedMode(
     uint32_t* ptrRow;
     uint32_t* ptrRowCopy;
 
-    uint32_t writeRamBuffer[CY_EM_EEPROM_MAXIMUM_ROW_SIZE / 4];
-
     const uint8_t* userBufferAddr_p = eepromData;
     uint32_t ptrUserData = (uint32_t)userBufferAddr_p;
     uint32_t numWrites = ((size - 1u) / context->headerDataLength) + 1u;
@@ -711,7 +713,6 @@ cy_en_em_eeprom_status_t Cy_Em_EEPROM_Erase(cy_stc_eeprom_context_t* context)
     uint32_t* ptrRow;
     uint32_t* ptrRowCopy;
     uint32_t seqNum;
-    uint32_t writeRamBuffer[CY_EM_EEPROM_MAXIMUM_ROW_SIZE / 4];
     uint32_t numRows = context->numberOfRows * context->wearLevelingFactor;
 
     //Clear buffer
@@ -1522,6 +1523,15 @@ static cy_en_em_eeprom_status_t CopyHeadersData(
     if (numReads > GetStoredSeqNum(ptrRowWrite))
     {
         numReads = GetStoredSeqNum(ptrRowWrite);
+        /* Only the first N rows have been written so far, only read up to the
+            current row starting from the first row*/
+        ptrRowRead = (uint32_t*)context->userNvmStartAddr;
+    }
+    else
+    {
+        /* No need to check the row about to write since it was checked at the last
+            write, so start with the following row. */
+        ptrRowRead = GetNextRowPointer(ptrRowRead, context);
     }
 
     if (context->numberOfRows <= 0U)
@@ -1540,8 +1550,6 @@ static cy_en_em_eeprom_status_t CopyHeadersData(
 
         for (i = 0u; i < numReads; i++)
         {
-            /* No need to check the row about to write since it was checked at the last write */
-            ptrRowRead = GetNextRowPointer(ptrRowRead, context);
             ptrRowWork = ptrRowRead;
 
             /* For the last header-read operation, checks data in the recently created header */
@@ -1615,6 +1623,7 @@ static cy_en_em_eeprom_status_t CopyHeadersData(
                     }
                 }
             }
+            ptrRowRead = GetNextRowPointer(ptrRowRead, context);
         }
         crcStatus = CY_EM_EEPROM_SUCCESS;
     }

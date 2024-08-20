@@ -4,6 +4,9 @@
 Please refer to the [README.md](./README.md) and the [API Reference Guide](https://infineon.github.io/emeeprom/em_eeprom_api_reference_manual/html/index.html) for a complete description of the Emulated EEPROM Middleware.
 The revision history of the Emulated EEPROM Middleware is also available on the [API Reference Guide Changelog](https://infineon.github.io/emeeprom/em_eeprom_api_reference_manual/html/index.html#section_em_eeprom_changelog).
 ### What Changed?
+Release version v2.40.0:
+* Moved RAM buffer to file scope to avoid overflowing the stack
+
 Release version v2.30.1:
 * Bug fixes and BWC fixes
 * Updated documentation
@@ -48,10 +51,9 @@ This version of the Emulated EEPROM Library was validated for compatibility with
 ### More information
 For more information, refer to the following documents:
 * [Emulated EEPROM Middleware README.md](./README.md)
-* [Emulated EEPROM Middleware API Reference Guide](https://infineon.github.io/emeeprom/em_eeprom_api_reference_manual/html/index.html)
+* [Emulated EEPROM Middleware API Reference Guide](https://infineon.github.io/emeeprom/html/modules.html)
 * [ModusToolbox Software Environment, Quick Start Guide, Documentation, and Videos](https://www.infineon.com/cms/en/design-support/tools/sdk/modustoolbox-software/)
-* [CAT1 PDL API Reference](https://infineon.github.io/mtb-pdl-cat1/pdl_api_reference_manual/html/index.html)
-* [CAT2 PDL API Reference](https://infineon.github.io/mtb-pdl-cat2/pdl_api_reference_manual/html/index.html)
+* [Block Storage Middleware API Reference Guide](https://infineon.github.io/block-storage/html/modules.html)
 * [AN219434 Importing PSoC Creator Code into an IDE for a PSoC 6 Project](https://www.cypress.com/an219434)
 * [AN210781 Getting Started with PSoC 6 MCU with Bluetooth Low Energy (BLE) Connectivity](http://www.cypress.com/an210781)
 * [PSoC 6 Technical Reference Manual](https://www.cypress.com/documentation/technical-reference-manuals/psoc-6-mcu-psoc-63-ble-architecture-technical-reference)

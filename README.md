@@ -25,7 +25,7 @@ Refer to the API Reference Quick Start section for step-by-step instruction how 
 
 ## More information
 For more information, refer to the following documents:
-* [Emulated EEPROM Middleware API Reference Guide](https://infineon.github.io/emeeprom/em_eeprom_api_reference_manual/html/index.html)
+* [Emulated EEPROM Middleware API Reference Guide](https://infineon.github.io/emeeprom/html/index.html)
 * [Cypress Semiconductor, an Infineon Technologies Company](http://www.cypress.com)
 * [Infineon GitHub](https://github.com/infineon)
 * [ModusToolbox�](https://www.cypress.com/products/modustoolbox-software-environment)
