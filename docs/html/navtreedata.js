@@ -25,13 +25,6 @@
 var NAVTREE =
 [
   [ "Emulated EEPROM", "index.html", [
-    [ "Emulated EEPROM Library", "index.html", [
-      [ "Overview", "index.html#autotoc_md1", null ],
-      [ "Features", "index.html#autotoc_md2", null ],
-      [ "Dependencies", "index.html#autotoc_md3", null ],
-      [ "Quick Start", "index.html#autotoc_md4", null ],
-      [ "More information", "index.html#autotoc_md5", null ]
-    ] ],
     [ "API Reference", "modules.html", "modules" ]
   ] ]
 ];

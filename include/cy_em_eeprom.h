@@ -1,6 +1,5 @@
 /*******************************************************************************
 * \file cy_em_eeprom.h
-* \version 2.30
 *
 * \brief
 * This file provides the function prototypes and constants for the
@@ -8,11 +7,33 @@
 *
 ********************************************************************************
 * \copyright
-* (c) (2023), Cypress Semiconductor Corporation (an Infineon company) or
-* an affiliate of Cypress Semiconductor Corporation. All rights reserved.
-* You may use this file only in accordance with the license, terms, conditions,
-* disclaimers, and limitations in the end user license agreement accompanying
-* the software package with which this file was provided.
+* (c) (2019-2026), Infineon Technologies AG, or an affiliate of Infineon
+* Technologies AG. All rights reserved.
+* This software, associated documentation and materials ("Software") is
+* owned by Infineon Technologies AG or one of its affiliates ("Infineon")
+* and is protected by and subject to worldwide patent protection, worldwide
+* copyright laws, and international treaty provisions. Therefore, you may use
+* this Software only as provided in the license agreement accompanying the
+* software package from which you obtained this Software. If no license
+* agreement applies, then any use, reproduction, modification, translation, or
+* compilation of this Software is prohibited without the express written
+* permission of Infineon.
+*
+* Disclaimer: UNLESS OTHERWISE EXPRESSLY AGREED WITH INFINEON, THIS SOFTWARE
+* IS PROVIDED AS-IS, WITH NO WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+* INCLUDING, BUT NOT LIMITED TO, ALL WARRANTIES OF NON-INFRINGEMENT OF
+* THIRD-PARTY RIGHTS AND IMPLIED WARRANTIES SUCH AS WARRANTIES OF FITNESS FOR A
+* SPECIFIC USE/PURPOSE OR MERCHANTABILITY.
+* Infineon reserves the right to make changes to the Software without notice.
+* You are responsible for properly designing, programming, and testing the
+* functionality and safety of your intended application of the Software, as
+* well as complying with any legal requirements related to its use. Infineon
+* does not guarantee that the Software will be free from intrusion, data theft
+* or loss, or other breaches ("Security Breaches"), and Infineon shall have
+* no liability arising out of any Security Breaches. Unless otherwise
+* explicitly approved by Infineon, the Software may not be used in any
+* application where a failure of the Product or any consequences of the use
+* thereof can reasonably be expected to result in personal injury.
 *******************************************************************************/
 /**
  ********************************************************************************
@@ -33,916 +54,9 @@
  * * Optional Wear Leveling
  * * Optional Redundant Data Storage
  *
- ********************************************************************************
- * \section section_em_eeprom_general_description General Description
- ********************************************************************************
- *
- * Include cy_em_eeprom.h to get access to all functions and other declarations
- * in this library. See the \ref section_em_eeprom_quick_start to start using
- * the Em_EEPROM.
- *
- * Refer to the \ref section_em_eeprom_toolchain section for compatibility
- * information.
- *
- * Refer to the \ref section_em_eeprom_changelog section for differences
- * between Em_EEPROM versions. The \ref section_em_eeprom_changelog section
- * also describes the impact of the changes to your code.
- *
- * Em_EEPROM operates on the top of the block storage solution.
- * Refer to the block storage asset documentation for more information.
- * Also, refer to the \ref section_em_eeprom_miscellaneous section for
- * the different Em_EEPROM middleware restrictions and limitations.
- *
- * The Em_EEPROM middleware can operate in various modes:
- * * with or without wear leveling - depending on whether you want to increase
- *   the endurance of the nvm memory.
- * * with or without a redundant copy - depending on how critical for you is
- *   the ability to recover information.
- * * to save nvm and work via Em_EEPROM APIs similar to the nvm APIs.
- *   But, in this case, recovering your data and monitoring the endurance
- *   is impossible.
- *
- * There are several use cases depending on where you store your Em_EEPROM data:
- * * in the application flash
- * * in the auxiliary flash
- * * in the application flash at a fixed address.
- *
- * Note: refer to device capabilities for supported storage location for
- * EM_EEPROM data.
- *
- * The \ref section_em_eeprom_configuration_considerations section provides
- * the guidance for all these operation modes and use cases.
- * You may also want to migrate from PSoC Creator to ModusToolbox
- * or other environment to simply use the Em_EEPROM middleware APIs.
- * Refer to the \ref section_em_eeprom_migration section.
- *
- * The \ref section_em_eeprom_quick_start section highlights the use case,
- * when the Em_EEPROM data is located in the application flash, and the
- * Em_EEPROM is configured to increase the flash endurance
- * (the wearLevelingFactor parameter is turned on).
- *
- ********************************************************************************
- * \section section_em_eeprom_xmc7xxx XMC7xxx and T2G-B-H Em_EEPROM storage restrictions
- ********************************************************************************
- *
- * XMC7xxx and T2G-B-H based devices support Em_EEPROM Data only in "Work Flash".
- * The "Work Flash" provides sectors with 2 sizes namely: Large (2 kbytes) and
- * Small (128 bytes). The user should select which type of Work FLash region
- * will be used for Em_EEPROM storage specifying the start address in the config
- * structure.
- *
- * Using EEPROM Personality:
- * The EEPROM personality has checkbox for:
- * "Work Flash Sector Selection default Small Sector"
- * which is "checked" by default. To use Large sector work flash, uncheck this box.
- *
- ********************************************************************************
- * \section section_em_eeprom_quick_start Quick Start Guide
- ********************************************************************************
- *
- * Em_EEPROM middleware can be used in various Development
- * Environments such as ModusToolbox, Mbed OS, etc. Refer to the
- * \ref section_em_eeprom_toolchain section.
- *
- * The below steps describe the simplest way of enabling the Em_EEPROM
- * middleware with placing EEPROM memory into the application flash.
- *
- * 1. Open/Create an application where to add the Em_EEPROM function.
- *
- * 2. Add the Em_EEPROM middleware to your project.
- *    This quick start guide assumes that the environment is configured
- *    to use the Peripheral Driver Library (mtb-pdl-cat1 or mtb-pdl-cat2)
- *    and the Hardware Abstraction Layer (mtb-hal-cat1)
- *    for development and the Peripheral Driver Library is included in
- *    the project. If you are using the ModusToolbox development environment
- *    select the application in the Project Explorer window and navigate to
- *    the Project/ModusToolbox Library Manager menu. A window appears,
- *    check the Emulated EEPROM middleware and click the OK button.
- *
- * 3. Include Em_EEPROM in the main.c file:
- *    \snippet emeeprom/sut/main.c snippet_required_includes
- *
- * 4. Define the Em_EEPROM configuration as follow:
- *    \snippet emeeprom/sut/main.c snippet_configuration_data
- *    \snippet emeeprom/sut/main.c snippet_configuration_simple
- *    \snippet emeeprom/sut/main.c snippet_configuration_wear
- *    \snippet emeeprom/sut/main.c snippet_configuration_redundant
- *    \snippet emeeprom/sut/main.c snippet_configuration_blocking
- *    Refer to the \ref cy_stc_eeprom_config_t  or \ref cy_stc_eeprom_config2_t
- *    structure for details of other configuration options.
- *
- * 5. Declare the Em_EEPROM storage variable (further Em_EEPROM Storage)
- *    in the application nvm:
- *    \snippet emeeprom/sut/main.c snippet_application_storage_placing
- *    The allocated memory must be initialized by zeros, and aligned to the
- *    whole row size CY_EM_EEPROM_FLASH_SIZEOF_ROW for Flash based products,
- *    otherwise the Em_EEPROM middleware behavior will be unexpected.<br>
- *    Refer to the \ref section_em_eeprom_configuration_considerations section
- *    for other options of Em_EEPROM nvm allocation.
- *
- * 6. Allocate memory for the Em_EEPROM context structure:
- *    \snippet emeeprom/sut/main.c snippet_eeprom_context_declaration
- *
- * 7. Allocate memory for the Em_EEPROM configuration structure and
- *    initialize it:
- *    \snippet emeeprom/sut/main.c snippet_eeprom_config_declaration
- *    or
- *    \snippet emeeprom/sut/main.c snippet_eeprom_config2_declaration
- *
- * 8. Initialize the Em_EEPROM middleware once at the start:
- *    \snippet emeeprom/sut/main.c snippet_eeprom_start
- *    or
- *    \snippet emeeprom/sut/main.c snippet_eeprom_start_with_bd_nvm
- *    or
- *    \snippet emeeprom/sut/main.c snippet_eeprom_start_with_bd_cat2
- *    Init function stores in context, the configuration and current state
- *    of EEPROM storage. It is used and updated in subsequent API calls.
- *
- * 9. Now, the Em_EEPROM middleware is ready to use. Call the Write or Read
- *    functions to write or read one byte or Erase to wipe the storage:
- *    \snippet emeeprom/sut/main.c snippet_eeprom_read_write
- *    and
- *    \snippet emeeprom/sut/main.c snippet_eeprom_erase
- *
- ********************************************************************************
- * \section section_em_eeprom_configuration_considerations Configuration Considerations
- ********************************************************************************
- *
- * This section consists of different guides and instruction of how to enable,
- * configure, and use the Emulated EEPROM Middleware in a design.
- * As you can see from the \ref section_em_eeprom_quick_start section,
- * the settings of the Em_EEPROM middleware are controlled with
- * the \ref cy_stc_eeprom_config_t structure. Please see its description
- * to learn about the parameters and values.
- *
- * Now we will describe the most common use cases along with the
- * configuration structure examples and code snippets.
- * The list of sections under Configuration Considerations:
- *
- * * \ref section_em_eeprom_operating_modes
- *   * \ref section_em_eeprom_mode_wearleveling
- *   * \ref section_em_eeprom_mode_redundantcopy
- *   * \ref section_em_eeprom_mode_simple
- * * \ref section_em_eeprom_location
- *   * \ref section_em_eeprom_appsflash_location
- *   * \ref section_em_eeprom_auxflash_location
- *   * \ref section_em_eeprom_appsflash_fixed
- * * \ref section_em_eeprom_migration
- *
- * Also refer to the \ref section_em_eeprom_miscellaneous for the
- * existing restrictions.
- *
- ********************************************************************************
- * \subsection section_em_eeprom_operating_modes Operating Modes
- ********************************************************************************
- *
- * The settings of the Em_EEPROM middleware are controlled by
- * the \ref cy_stc_eeprom_config_t structure. See its description
- * to learn about the parameters and values.
- *
- ********************************************************************************
- * \subsubsection section_em_eeprom_mode_wearleveling Wear Leveling
- ********************************************************************************
- *
- * Depending on whether you want to increase the flash memory endurance
- * or not, enable or disable the wear leveling.
- * The higher the value is, the more flash is used, but a higher number of
- * erase/write cycles can be done on Em_EEPROM.
- * Multiply this number by the datasheet write endurance spec to determine
- * the max of write cycles.<br>
- * The amount of wear leveling from 1 to 10. 1 means no wear leveling is used.
- *
- * To configure the wear leveling just set the WEAR_LEVELING macro value from
- * (1u) to (10u) in step #4 in the \ref section_em_eeprom_quick_start section:
- * \snippet emeeprom/sut/main.c snippet_configuration_wear
- *
- ********************************************************************************
- * \subsubsection section_em_eeprom_mode_redundantcopy Redundant Copy
- ********************************************************************************
- *
- * Depending on how critical for you is recovering information,
- * configure the redundant copy feature.
- * If enabled (1 - enabled, 0 - disabled), a checksum
- * (stored in a row) is calculated on each row of data,
- * while a redundant copy of Em_EEPROM is stored in another location.
- * When data is read, first the checksum is checked. If that checksum is bad,
- * and the redundant copy's checksum is good, the copy is restored.
- *
- * To configure the redundant copy just set the REDUNDANT_COPY macro value to
- * (1u) or (0u) in step #4 in the \ref section_em_eeprom_quick_start section:
- * \snippet emeeprom/sut/main.c snippet_configuration_redundant
- *
- ********************************************************************************
- * \subsubsection section_em_eeprom_mode_simple Simple Mode
- ********************************************************************************
- *
- * Simple mode, when enabled (1 - enabled, 0 - disabled), means no
- * additional service information is stored by the Em_EEPROM middleware
- * like checksums, headers, a number of writes, etc.
- * Data is stored directly by the specified address.
- * The size of Em_EEPROM storage is equal to the number of
- * byte specified in the eepromSize parameter rounded up to a full row
- * size CY_EM_EEPROM_FLASH_SIZEOF_ROW. The wear leveling and
- * redundant copy features are disabled, i.e. wearLevelingFactor and
- * redundantCopy parameters are ignored.
- *
- * To configure Simple mode just set the SIMPLE_MODE macro value
- * to (1u) or (0u) in step #4 in the \ref section_em_eeprom_quick_start section:
- * \snippet emeeprom/sut/main.c snippet_configuration_simple
- *
- ********************************************************************************
- * \subsection section_em_eeprom_location Em_EEPROM Storage Variable Location and Size
- ********************************************************************************
- *
- * The user is responsible for allocating space in flash for Em_EEPROM
- * (further the Em_EEPROM storage).
- *
- * For PSoC 6 the Em_EEPROM storage can be placed:
- * * in the application flash
- * * in the auxiliary flash.
- *
- * Additionally, the storage can be placed at a fixed address in the
- * application flash.
- *
- * For PSoC 4 the Em_EEPROM storage can be placed:
- * * in the application flash
- *
- * Additionally, the storage can be placed at a fixed address in the
- * application flash.
- *
- * For XMC7xxx and T2G-B-H the Em_EEPROM storage can be placed:
- * * in the Work Flash region
- *
- * The storage location must be aligned to CY_EM_EEPROM_FLASH_SIZEOF_ROW.
- *
- * The storage size depends on other configuration parameters and is calculated
- * using the following equation:
- *
- * 1. Simple mode is turned on. It means the direct mapping of the user data
- *    in the Em_EEPROM storage:
- *
- *    <i>storageSize = eepromSize</i>
- *
- *    where:<br>
- *    <i>eepromSize</i> the number of bytes to store in the Em_EEPROM storage
- *    rounded up to a full row size CY_EM_EEPROM_FLASH_SIZEOF_ROW.
- *    The row size is specific for a device family. Refer to the specific
- *    PSoC device datasheet.
- *
- * 2. Simple mode is turned off. It means the Em_EEPROM middleware stores
- *    service information about number of writes, checksums, etc.
- *
- *    <i>storageSize = eepromSize * 2 * wearLevelingFactor * (1 + redundantCopy)</i>
- *
- *    where:<br>
- *    <i>eepromSize</i> the number of bytes to store in the Em_EEPROM storage
- *    rounded up to the half of a row size (CY_EM_EEPROM_FLASH_SIZEOF_ROW / 2u).
- *    The row size is specific for a device family. Refer to the specific
- *    PSoC device datasheet.
- *
- * Use the CY_EM_EEPROM_GET_PHYSICAL_SIZE() macro to get the needed
- * storage size depending on the configuration.
- *
- ********************************************************************************
- * \subsubsection section_em_eeprom_appsflash_location Em_EEPROM Location in the application flash
- ********************************************************************************
- *
- * The below example shows placing the Em_EEPROM storage in the application
- * flash for GCC, ARMCC, and IAR compilers:
- *
- *    \code
- *      CY_ALIGN(CY_EM_EEPROM_FLASH_SIZEOF_ROW)
- *      const uint8_t emEepromStorage[STORAGE_SIZE] = {0u};
- *    \endcode
- *
- * where STORAGE_SIZE is the size of the Em_EEPROM storage. Refer to the
- * \ref section_em_eeprom_location section for size calculation equations.
- * For convenience, use the CY_EM_EEPROM_GET_PHYSICAL_SIZE macro to
- * get the needed Em_EEPROM storage size depending on the configuration.
- *
- * For MXS40v2 devices, if using ARM compiler, there is a required manual update
- * to the linker script needed to correctly align the Em_EEPROM storage to the start
- * of a Flash sector. This can be achieved by updating the align size for ER_FLASH_CODE
- * sector in the default linker script from 16 to 512 as follows:
- * * original: \n
- *      `ER_FLASH_CODE
- * AlignExpr(FLASH_START_VMA+ImageLength(ER_FLASH_VECTORS)+ImageLength(ER_FLASH_ROOT),`
- *      <b>16</b>
- *      `) OVERLAY`
- * * updated: \n
- *      `ER_FLASH_CODE
- * AlignExpr(FLASH_START_VMA+ImageLength(ER_FLASH_VECTORS)+ImageLength(ER_FLASH_ROOT), `
- *      <b>512</b>
- *      `) OVERLAY`
- *
- ********************************************************************************
- * \subsubsection section_em_eeprom_auxflash_location Em_EEPROM Location in the auxiliary flash
- ********************************************************************************
- *
- * Writes to rows affect the endurance of other rows in the same sector.
- * We recommend using the auxiliary flash for frequently-updated data.
- * The below example shows placing the Em_EEPROM storage in the
- * auxiliary flash (section .cy_em_eeprom) for GCC, ARMCC, and IAR compilers.
- *
- *    \code
- *      CY_SECTION(".cy_em_eeprom")
- *      CY_ALIGN(CY_EM_EEPROM_FLASH_SIZEOF_ROW)
- *      const uint8_t emEepromStorage[STORAGE_SIZE] = {0u};
- *    \endcode
- *
- * where STORAGE_SIZE is the size of the storage. Refer to the
- * \ref section_em_eeprom_location section for size calculation equations.
- * For convenience, use the CY_EM_EEPROM_GET_PHYSICAL_SIZE macro to
- * get the needed Em_EEPROM storage size depending on the configuration.
- *
- ********************************************************************************
- * \subsection section_em_eeprom_appsflash_fixed Em_EEPROM Location in the application flash at a
- * fixed address
- ********************************************************************************
- *
- * To allocate the Em_EEPROM storage at a fixed address in
- * the application flash, modify the linker control file (linker script).
- * This requires fundamental knowledge of the linker
- * control file, because there is a risk of receiving a linker error while
- * building the project if you make some improper modifications.
- *
- * This approach demonstrates adding the storage reservation in the application
- * flash after the application. You must calculate the application end
- * address and select the address of the Em_EEPROM storage so that the
- * memory spaces of the storage and the application do not overlap.
- * You might also add some offset between the application end address
- * and the Em_EEPROM storage start address to ensure
- * there is extra space in case the project code grows.
- *
- ********************************************************************************
- * \subsubsection section_em_eeprom_fixed_address_gcc Em_EEPROM Storage at a Fixed Address for GCC
- * Compiler
- ********************************************************************************
- *
- * 1. Build the project to generate linker scripts.
- *
- * 2. Open the linker script "cy8c6xxa_cm4_dual.ld" for the CM4 core
- *    and search the following declaration:
- *    \code
- *      etext =  . ;
- *    \endcode
- *    Paste the following code right after the declaration:
- *    \code
- *      EM_EEPROM_START_ADDRESS = <EEPROM Storage Address>;
- *      .my_emulated_eeprom EM_EEPROM_START_ADDRESS :
- *      {
- *         KEEP(*(.my_emulated_eeprom))
- *      } > flash
- *    \endcode
- *    where:
- *   * EEPROM Storage Address is an absolute address in flash where
- *     the Em_EEPROM operates. You must define the address value.
- *     Ensure the address is aligned to the size of the device's flash row
- *     and does not overlap with the memory space used by the application.
- *
- *   * my_emulated_eeprom is the name of the section
- *     where the Em_EEPROM storage will be placed. The name can be changed to
- *     any name you choose.
- *
- * 3. Save the changes and close the file.
- *
- * 4. Declare the Em_EEPROM storage in the newly created section. To do this,
- *    declare an array in flash, aligned to the size of the flash row of
- *    the device you are using. An example of such array declaration
- *    is the following:
- *    \code
- *      CY_SECTION(".my_emulated_eeprom")
- *      CY_ALIGN(CY_EM_EEPROM_FLASH_SIZEOF_ROW)
- *      const uint8 emEepromStorage[STORAGE_SIZE];
- *    \endcode
- *
- * 5. After the Em_EEPROM storage is defined, pass the address to
- *    the middleware:
- *    \snippet emeeprom/sut/main.c snippet_eeprom_pass_address
- *
- * 6. Build the project to verify the correctness of the linker control file
- *    modifications.
- *
- ********************************************************************************
- * \subsubsection section_em_eeprom_fixed_address_arm Em_EEPROM Storage at a Fixed Address for ARM
- * Compiler
- ********************************************************************************
- *
- * 1. Build the project to generate linker scripts.
- *
- * 2. Open the linker script "cy8c6xxa_cm4_dual.sct" for the CM4 core
- *    and search the following declaration:
- *    \code
- *      ; Emulated EEPROM Flash area
- *      LR_EM_EEPROM EM_EEPROM_START EM_EEPROM_SIZE
- *    \endcode
- *    Paste the following code right before the declaration:
- *    \code
- *      #define EM_EEPROM_START_ADDRESS <EEPROM Storage Address>
- *      EM_EEPROM (EM_EEPROM_START_ADDRESS)
- *      {
- *         .my_emulated_eeprom+0
- *         {
- *             *(.my_emulated_eeprom)
- *         }
- *      }
- *    \endcode
- *    where:
- *   * EEPROM Storage Address is an absolute address in flash where
- *     the Em_EEPROM operates. You must define the address value.
- *     Ensure the address is aligned to the size of the device's flash row
- *     and does not overlap with the memory space used by the application.
- *
- *   * my_emulated_eeprom is the name of the section
- *     where the Em_EEPROM storage will be placed. The name can be changed to
- *     any name you choose.
- *
- * 3. Save the changes and close the file.
- *
- * 4. Declare the Em_EEPROM storage in the newly created section. To do this,
- *    declare an array in flash, aligned to the size of the flash row of
- *    the device you are using. An example of such array declaration
- *    is the following:
- *    \code
- *      CY_SECTION(".my_emulated_eeprom")
- *      CY_ALIGN(CY_EM_EEPROM_FLASH_SIZEOF_ROW)
- *      const uint8 emEepromStorage[STORAGE_SIZE];
- *    \endcode
- *
- * 5. After the Em_EEPROM storage is defined, pass the address to
- *    the middleware:
- *    \snippet emeeprom/sut/main.c snippet_eeprom_pass_address
- *
- * 6. Build the project to verify the correctness of the linker control file
- *    modifications.
- *
- ********************************************************************************
- * \subsubsection section_em_eeprom_fixed_address_iar Em_EEPROM Storage at a Fixed Address for IAR
- * Compiler
- ********************************************************************************
- *
- * 1. Build the project to generate linker scripts.
- *
- * 2. Open the linker script "cy8c6xxa_cm4_dual.icf" for the CM4 core
- *    and search the following declaration:
- *    \code
- *      ".cy_app_signature" : place at address (__ICFEDIT_region_IROM1_end__ - 0x200) { section
- * .cy_app_signature };
- *    \endcode
- *    Paste the following code right after the declaration:
- *    \code
- *      define symbol EM_EEPROM_START_ADDRESS = <EEPROM Storage Address>
- *      ".my_emulated_eeprom" : place at address (EM_EEPROM_START_ADDRESS) { section
- * .my_emulated_eeprom };
- *    \endcode
- *    Search again the following declaration:
- *    \code
- *      keep {  section .cy_m0p_image,
- *              section .cy_app_signature,
- *    \endcode
- *    Paste the following code right after the declaration:
- *    \code
- *              section .my_emulated_eeprom,
- *    \endcode
- *    where:
- *   * EEPROM Storage Address is an absolute address in flash where
- *     the Em_EEPROM operates. You must define the address value.
- *     Ensure the address is aligned to the size of the device's flash row
- *     and does not overlap with the memory space used by the application.
- *
- *   * my_emulated_eeprom is the name of the section
- *     where the Em_EEPROM storage will be placed. The name can be changed to
- *     any name you choose.
- *
- * 3. Save the changes and close the file.
- *
- * 4. Declare the Em_EEPROM storage in the newly created section. To do this,
- *    declare an array in flash, aligned to the size of the flash row of
- *    the device you are using. An example of such array declaration
- *    is the following:
- *    \code
- *      CY_SECTION(".my_emulated_eeprom")
- *      CY_ALIGN(CY_EM_EEPROM_FLASH_SIZEOF_ROW)
- *      const uint8 emEepromStorage[STORAGE_SIZE];
- *    \endcode
- *
- * 5. After the Em_EEPROM storage is defined, pass the address to
- *    the middleware:
- *    \snippet emeeprom/sut/main.c snippet_eeprom_pass_address
- *
- * 6. Build the project to verify the correctness of the linker control file
- *    modifications.
- *
- ********************************************************************************
- * \subsection section_em_eeprom_miscellaneous Limitations and Restrictions
- ********************************************************************************
- *
- * * The Em_EEPROM storage location must be initialized with zeros and
- *   aligned to the flash row size referred to in the specific PSoC device
- *   datasheet otherwise the Em_EEPROM behavior may be unexpected.
- *   For convenience, CY_EM_EEPROM_FLASH_SIZEOF_ROW is provided.
- *
- * * The Em_EEPROM storage size depends on the configuration. Refer to the
- *   \ref section_em_eeprom_location section for size calculation equations.
- *   For convenience, the CY_EM_EEPROM_GET_PHYSICAL_SIZE macro is provided.
- *
- * * Do not modify the Em_EEPROM context structure \ref cy_stc_eeprom_context_t
- *   since it may cause unexpected behavior of the Cy_Em_EEPROM functions
- *   that rely on this context structure.
- *
- * * The Internal memory address map, flash organization, size of rows, etc.
- *   is specific for each device family. Refer to the specific device datasheet
- *   for the details.
- *
- * * The Read-While-Write (RWW) feature available in PSoC 6 MCU allows you
- *   to write to flash while executing the code from flash. There are restrictions
- *   on using this feature for EEPROM emulation. There are also multiple
- *   constraints for blocking and nonblocking flash operations, relating to
- *   interrupts, Power mode, IPC usage, etc.
- *   Refer to the "Flash (Flash System Routine)" section of the CAT1
- *   Peripheral Driver Library (mtb-pdl-cat1) API Reference Manual.<br>
- *
- * * Manage auxiliary flash space for both cores of PSoC 6. For PSoC 6,
- *   by default, the compiler always assigns both cores with full range
- *   of auxiliary flash (0x14000000-0x14008000) for EM_EEPROM. Both
- *   cores operate on the same flash object. A building error would occur
- *   if there is an out-sync operation on the memory range from any single
- *   core. If more than one driver and/or middleware occupying the auxiliary
- *   flash is simultaneously under used, for example, Bluetooth Low Energy
- *   (BLE) and Em_EEPROM, a building error will occur while generating the
- *   elf file. The error occurs because there is an auxiliary flash region
- *   allocated for BLE to store the Bonding list, and this region will only
- *   be allocated to the core where the BLE host lies. This out-sync between
- *   the two cores causes the building failure. For details of how to manage
- *   the auxiliary flash for both cores properly refer to
- *   the <a href="https://community.cypress.com/docs/DOC-15264">
- *   <b>Manage Flash Space for Both Cores of PSoC 6 - KBA224173</b></a>
- *
- * * Writing of multiple rows by single the Cy_Em_EEPROM_Write() function
- *   may lead to the following behavior:
- *   The first row is written, then the device is reset due to power down or other
- *   reasons, then the device is powered up again. This leads to data integrity
- *   loss: i.e. the first row contains new data while the rest of the rows contain
- *   old data and Em_EEPROM will not be able to detect the issue since
- *   the row checksum is valid.
- *
- ********************************************************************************
- * \subsection section_em_eeprom_migration Migration from PSoC Creator
- ********************************************************************************
- *
- * This section helps migrate your project from PSoC Creator with the
- * Em_EEPROM component to ModusToolbox or other software environment using
- * the Em_EEPROM middleware.
- *
- * The migration consists of three steps:
- * * \ref section_em_eeprom_migration_location
- * * \ref section_em_eeprom_migration_configuration
- * * \ref section_em_eeprom_migration_function
- *
- ********************************************************************************
- * \subsubsection section_em_eeprom_migration_location Migration of Em_EEPROM Location
- ********************************************************************************
- *
- * The PSoC Creator Em_EEPROM component has parameter "Use Emulated EEPROM". It
- * defines where the Em_EEPROM storage is located.
- * * "Use Emulated EEPROM" = No <br>
- *   The Em_EEPROM storage is defined by the application program. Then
- *   move the Em_EEPROM storage declaration from the PSoC Creator project
- *   into the ModusToolbox project. Refer to \ref section_em_eeprom_location
- *   to check for other possible options.
- * * "Use Emulated EEPROM" = Yes <br>
- *   The Em_EEPROM component provides Em_EEPROM storage located in the
- *   auxiliary flash. The Em_EEPROM middleware requires the storage
- *   to be provided by the application program.
- *   Therefore, place the below code into your application program.
- *     \code
- *       CY_SECTION(".cy_em_eeprom")
- *       CY_ALIGN(CY_EM_EEPROM_FLASH_SIZEOF_ROW)
- *       const uint8_t emEepromStorage[STORAGE_SIZE] = {0u};
- *     \endcode
- *   where STORAGE_SIZE is the size of the storage that can be seen in
- *   the Em_EEPROM component customizer as "Actual EEPROM size (bytes)".<br>
- *   For convenience, use the CY_EM_EEPROM_GET_PHYSICAL_SIZE macro to
- *   get the needed Em_EEPROM storage size depending on the configuration.
- *
- ********************************************************************************
- * \subsubsection section_em_eeprom_migration_configuration Migration of Configuration
- ********************************************************************************
- *
- * Allocate memory for Em_EEPROM context and configuration structures, and
- * initialize the configuration structure per the Em_EEPROM component
- * configuration:
- *
- *    \code
- *      cy_stc_eeprom_context_t eepromContext;
- *      cy_stc_eeprom_config_t eepromConfig =
- *      {
- *          .eepromSize = <EEPROM Size>,
- *          .simpleMode = 0u,
- *          .wearLevelingFactor = <Wear Level Factor>,
- *          .redundantCopy = <Redundant Copy>,
- *          .blockingWrite = <Use Blocking Write>,
- *          .userFlashStartAddr = (uint32_t)&(emEepromStorage[0u]),
- *      };
- *      cy_stc_eeprom_config2_t eepromConfigNew =
- *      {
- *          .eepromSize = <EEPROM Size>,
- *          .simpleMode = 0u,
- *          .wearLevelingFactor = <Wear Level Factor>,
- *          .redundantCopy = <Redundant Copy>,
- *          .blockingWrite = <Use Blocking Write>,
- *          .userNvmStartAddr = (uint32_t)&(emEepromStorage[0u]),
- *      };
- *    \endcode
- * where the right side of initialization is the Em_EEPROM Component customizer
- * parameters and "emEepromStorage" is the name of the storage.
- *
- ********************************************************************************
- * \subsubsection section_em_eeprom_migration_function Migration of Function
- ********************************************************************************
- *
- * Now, after the storage and configuration are defined, change the names of
- * the functions used in the PSoC Creator project per the following table:
- *
- * <table class="doxtable">
- *   <tr>
- *     <th>PSoC Creator Em_EEPROM Component</th>
- *     <th>ModusToolbox Em_EEPROM Middleware</th>
- *   </tr>
- *   <tr>
- *     <td>EEPROM_Init(X)</td>
- *     <td>Cy_Em_EEPROM_Init(&eepromConfig, &eepromContext)</td>
- *   </tr>
- *   <tr>
- *     <td>EEPROM_Write(X1, X2, X3)</td>
- *     <td>Cy_Em_EEPROM_Write(X1, X2, X3, &eepromContext)</td>
- *   </tr>
- *   <tr>
- *     <td>EEPROM_Read(X1, X2, X3)</td>
- *     <td>Cy_Em_EEPROM_Read(X1, X2, X3, &eepromContext)</td>
- *   </tr>
- *   <tr>
- *     <td>EEPROM_Erase()</td>
- *     <td>Cy_Em_EEPROM_Erase(&eepromContext)</td>
- *   </tr>
- *   <tr>
- *     <td>EEPROM_NumWrites()</td>
- *     <td>Cy_Em_EEPROM_NumWrites(&eepromContext)</td>
- *   </tr>
- * </table>
- *
- * <b> Note </b> The above table shows the function names with an assumption
- * that the PSoC Creator component name is EEPROM.
- *
- ********************************************************************************
- * \section section_em_eeprom_toolchain Supported Software and Tools
- ********************************************************************************
- *
- * This version of the Em_EEPROM Middleware was validated for the compatibility
- * with the following software and tools:
- *
- * <table class="doxtable">
- *   <tr>
- *     <th>Software and Tools</th>
- *     <th>Version</th>
- *   </tr>
- *   <tr>
- *     <td>ModusToolbox Software Environment</td>
- *     <td>3.0</td>
- *   </tr>
- *   <tr>
- *     <td>CAT1 Peripheral Driver Library (mtb-pdl-cat1)</td>
- *     <td>3.0.0</td>
- *   </tr>
- *   <tr>
- *     <td>CAT2 Peripheral Driver Library (mtb-pdl-cat2)</td>
- *     <td>2.0.0</td>
- *   </tr>
- *   <tr>
- *     <td>GCC Compiler</td>
- *     <td>10.3.1</td>
- *   </tr>
- *   <tr>
- *     <td>IAR Compiler</td>
- *     <td>9.30.1</td>
- *   </tr>
- *   <tr>
- *     <td>Arm Compiler 6</td>
- *     <td>6.16</td>
- *   </tr>
- *   <tr>
- *     <td>Mbed OS</td>
- *     <td>5.13.1</td>
- *   </tr>
- *   <tr>
- *     <td>FreeRTOS</td>
- *     <td>10.4.3</td>
- *   </tr>
- * </table>
- *
- ********************************************************************************
- * \section section_em_eeprom_MISRA MISRA-C, 2012 Compliance
- ********************************************************************************
- *
- * There are no high or medium severity compliance issues for this asset. Listed
- * below are the deviations for minor issues.
- *
- * The Cy_Em_EEPROM library's specific deviations:
- *
- * <table class="doxtable">
- *   <tr>
- *     <th>MISRA Rule</th>
- *     <th>Rule Class (Required/Advisory)</th>
- *     <th>Rule Description</th>
- *     <th>Description of Deviation(s)</th>
- *   </tr>
- *   <tr>
- *     <td>5.9</td>
- *     <td>A</td>
- *     <td>Static Identifiers should be unique.</td>
- *     <td>Following naming convention for static functions.</td>
- *   </tr>
- *   <tr>
- *     <td>11.5</td>
- *     <td>A</td>
- *     <td>Typecast of void pointer should be avoided.</td>
- *     <td>The cast is used intentionally for the performance reason.</td>
- *   </tr>
- * </table>
- *
- ********************************************************************************
- * \section section_em_eeprom_changelog Changelog
- ********************************************************************************
- *
- * <table class="doxtable">
- *   <tr><th>Version</th><th>Changes</th><th>Reason for Change</th></tr>
- *   <tr>
- *     <td rowspan="3">2.30</td>
- *     <td>The Em_EEPROM 2.30 introduces dependency to new block storage
- *         abstraction layer. This extends support to all devices that
- *         support one of the two available block storage implementation
- *         HAL NVM based and PDL based for CAT2 devices.</td>
- *     <td> Easier maintainability and extendability of library for new
- *          products.</td>
- *   </tr>
- *   <tr>
- *     <td>Updated minor version defines</td>
- *     <td>Follow naming convention</td>
- *   </tr>
- *   <tr>
- *     <td>Updated documentation</td>
- *     <td></td>
- *   </tr>
- *   <tr>
- *     <td rowspan="3">2.20</td>
- *     <td colspan="2">The Em_EEPROM 2.20 adds support for XMC 7xxx and T2G-B-H devices.
- *         </td>
- *   </tr>
- *   <tr>
- *     <td>Updated major and minor version defines</td>
- *     <td>Follow naming convention</td>
- *   </tr>
- *   <tr>
- *     <td>Updated documentation</td>
- *     <td></td>
- *   </tr>
- *   <tr>
- *     <td rowspan="4">2.10</td>
- *     <td colspan="2">The Em_EEPROM 2.10 adds support for PSoC 4 devices.
- *         </td>
- *   </tr>
- *   <tr>
- *     <td>Updated major and minor version defines</td>
- *     <td>Follow naming convention</td>
- *   </tr>
- *   <tr>
- *     <td>Updated documentation</td>
- *     <td>User experience improvement and Logo update</td>
- *   </tr>
- *   <tr>
- *     <td>Fixed MISRA violations</td>
- *     <td>Improved the middleware robustness</td>
- *   </tr>
- *   <tr>
- *     <td rowspan="10">2.00</td>
- *     <td colspan="2">The Em_EEPROM 2.0 is not backward compatible with
- *         the previous version. It was significantly rewritten with changing
- *         the behavior of operation, adding many improvements and fixing
- *         defects.<br>
- *         However, the application programming interface (API) contains
- *         only single change and you can seamlessly migrate to 2.0 version.
- *         This change is consist in adding the \ref section_em_eeprom_mode_simple.
- *         </td>
- *   </tr>
- *   <tr>
- *     <td>Updated major and minor version defines</td>
- *     <td>Follow naming convention</td>
- *   </tr>
- *   <tr>
- *     <td>Updated documentation</td>
- *     <td>User experience improvement</td>
- *   </tr>
- *   <tr>
- *     <td>Changed the CY_EM_EEPROM_EEPROM_DATA_LEN macro by
- *         adding the simpleMode parameter</td>
- *     <td>Added new mode when wear leveling and redundant copy features
- *         are disabled</td>
- *   </tr>
- *   <tr>
- *     <td>Fixed MISRA violations</td>
- *     <td>Improved the middleware robustness</td>
- *   </tr>
- *   <tr>
- *     <td>Fixed the defect of the Cy_Em_EEPROM_Read() function when Emulated
- *         EEPROM data corruption in some cases caused infinite loop</td>
- *     <td>Fixed Defect</td>
- *   </tr>
- *   <tr>
- *     <td>Fixed the defect of the Cy_Em_EEPROM_Read() function when the
- *         function returns incorrect data after restoring data from the
- *         redundant copy</td>
- *     <td>Fixed Defect</td>
- *   </tr>
- *   <tr>
- *     <td>Added the mechanism to restore the corrupted redundant copy from the main data copy</td>
- *     <td>Improved the Em_EEPROM data reliability</td>
- *   </tr>
- *   <tr>
- *     <td>Revised the operation of Cy_Em_EEPROM_Read() and Cy_Em_EEPROM_Init()
- *         functions by removing the write operation.</td>
- *     <td>Improved the Em_EEPROM functionality</td>
- *   </tr>
- *   <tr>
- *     <td>Expanded the checksum verification to the entire row.</td>
- *     <td>Improved the Em_EEPROM data reliability</td>
- *   </tr>
- *   <tr>
- *     <td>1.10</td>
- *     <td>Flattened the organization of the driver source code into a single
- *         source directory and a single include directory </td>
- *     <td>Simplified the Driver library directory-structure</td>
- *   </tr>
- *   <tr>
- *     <td>1.0.1</td>
- *     <td>Added the Em_EEPROM storage allocation note to the
- *         \ref section_em_eeprom_configuration_considerations</td>
- *     <td>Documentation update and clarification</td>
- *   </tr>
- *   <tr>
- *     <td>1.0</td>
- *     <td>Initial Version</td>
- *     <td></td>
- *   </tr>
- * </table>
- *
- ********************************************************************************
- * \section section_em_eeprom_more_information More Information
- ********************************************************************************
- *
- * For more information, refer to the following documents:
- *
- * * <a href="https://www.cypress.com/products/modustoolbox-software-environment">
- *      <b>ModusToolbox Software Environment, Quick Start Guide, Documentation,
- *         and Videos</b>
- *   </a>
- *
- * * <a href="https://www.cypress.com/an219434">
- *      <b>AN219434 Importing PSoC Creator Code into an IDE for a PSoC 6
- *         Project</b>
- *   </a>
- *
- * * <a href="http://www.cypress.com/an210781">
- *      <b>AN210781 Getting Started with PSoC 6 MCU with Bluetooth Low
- *         Energy (BLE) Connectivity</b>
- *   </a>
- *
- * * <a
- * href="https://cypresssemiconductorco.github.io/mtb-pdl-cat1/pdl_api_reference_manual/html/index.html">
- *   <b>CAT1 PDL API Reference</b></a>
- *
- * * <a
- * href="https://cypresssemiconductorco.github.io/mtb-pdl-cat2/pdl_api_reference_manual/html/index.html">
- *   <b>CAT2 PDL API Reference</b></a>
- *
- * * <a
- * href="https://www.cypress.com/documentation/technical-reference-manuals/psoc-6-mcu-psoc-63-ble-architecture-technical-reference">
- *      <b>PSoC 6 Technical Reference Manual</b>
- *   </a>
- *
- * * <a href="http://www.cypress.com/ds218787">
- *      <b>PSoC 63 with BLE Datasheet Programmable System-on-Chip datasheet</b>
- *   </a>
- *
- * * <a href="http://www.cypress.com/psoc4">
- *      <b>PSoC 4 Product Reference</b>
- *   </a>
- *
- * \note
- * The links to the other software component's documentation (middleware and PDL)
- * point to GitHub to the latest available version of the software.
- * To get documentation of the specified version, download from GitHub and unzip
- * the component archive. The documentation is available in
- * the <i>docs</i> folder.
+ * For quick start guide, configuration considerations, storage placement,
+ * operating modes, limitations, and migration information, see the
+ * 'How to Use' and 'Configuration Considerations' sections in README.md.
  *
  ********************************************************************************
  *
@@ -991,7 +105,7 @@ extern "C" {
 #define CY_EM_EEPROM_MW_VERSION_MAJOR       (2)
 
 /** Library minor version */
-#define CY_EM_EEPROM_MW_VERSION_MINOR       (30)
+#define CY_EM_EEPROM_MW_VERSION_MINOR       (70)
 
 
 
@@ -1023,12 +137,12 @@ typedef struct
      * The logical size of data in bytes to store in the Em_EEPROM.
      * The size is rounded up to a full Em_EEPROM row size physically.
      * The row size is specific for a device family.
-     * Refer to the specific PSoC device datasheet.<br>
+     * Refer to the specific PSOC device datasheet.<br>
      * Note this size is often smaller than the total amount of nvm used
      * for the Em_EEPROM storage. The Em_EEPROM storage size depends on
      * the Em_EEPROM configuration and can be bigger because increasing
      * nvm endurance (wear-leveling) and restoring corrupted data from
-     * a redundant copy. Refer to the \ref section_em_eeprom_location section
+     * a redundant copy. See section 'Storage Variable Location and Size' in README.md
      * for size calculation equations.
      */
     uint32_t eepromSize;
@@ -1071,7 +185,12 @@ typedef struct
      * non-blocking writes are the same - the difference is that the
      * non-blocking writes do not block the interrupts.
      *
-     * \note Non-blocking nvm write is only supported by PSoC 6.
+     * \note Non-blocking nvm write is only supported on limited device list:
+     * PSOC Control PSC3/PSC3M8, PSOC6, XMC7xxx, and T2G-B-H. For other devices,
+     * the blocking write is used by default.
+     *
+     * See section 'Non-Blocking Operation' in README.md for details on the
+     * interrupt requirements when using non-blocking operation.
      */
     uint8_t blockingWrite;
 
@@ -1091,12 +210,12 @@ typedef struct
      * The logical size of data in bytes to store in the Em_EEPROM.
      * The size is rounded up to a full Em_EEPROM row size physically.
      * The row size is specific for a device family.
-     * Refer to the specific PSoC device datasheet.<br>
+     * Refer to the specific PSOC device datasheet.<br>
      * Note this size is often smaller than the total amount of nvm used
      * for the Em_EEPROM storage. The Em_EEPROM storage size depends on
      * the Em_EEPROM configuration and can be bigger because increasing
      * nvm endurance (wear-leveling) and restoring corrupted data from
-     * a redundant copy. Refer to the \ref section_em_eeprom_location section
+     * a redundant copy. See section 'Storage Variable Location and Size' in README.md
      * for size calculation equations.
      */
     uint32_t eepromSize;
@@ -1139,7 +258,12 @@ typedef struct
      * non-blocking writes are the same - the difference is that the
      * non-blocking writes do not block the interrupts.
      *
-     * \note Non-blocking nvm write is only supported by PSoC 6.
+     * \note Non-blocking nvm write is only supported on limited device list:
+     * PSOC Control PSC3/PSC3M8, PSOC6, XMC7xxx, and T2G-B-H. For other devices,
+     * the blocking write is used by default.
+     *
+     * See section 'Non-Blocking Operation' in README.md for details on the
+     * interrupt requirements when using non-blocking operation.
      */
     uint8_t blockingWrite;
 
@@ -1189,7 +313,7 @@ typedef struct
     uint8_t redundantCopy;
 
     /** If not zero, a blocking write to nvm is used. Otherwise,
-     * a non-blocking write is used. This parameter is used only for PSoC 6.
+     * a non-blocking write is used. This parameter is used only for PSOC 6.
      */
     uint8_t blockingWrite;
 
@@ -1299,7 +423,7 @@ cy_en_em_eeprom_status_t Cy_Em_EEPROM_Init(
  * data is stored and returns the data to the user.
  *
  * This function uses a buffer of the flash row size to perform the read
- * operation. For the size of the row, refer to the specific PSoC device
+ * operation. For the size of the row, refer to the specific PSOC device
  * datasheet.
  *
  * There are restrictions on using the read-while-write (RWW) feature for
@@ -1347,7 +471,7 @@ cy_en_em_eeprom_status_t Cy_Em_EEPROM_Read(
  * For the size of the row, refer to the specific device
  * datasheet.
  *
- * If the blocking write option is used (PSoC 6), and write or erase operations
+ * If the blocking write option is used (PSOC 6), and write or erase operations
  * are performed by CM4, the user's code on CM0P and CM4 is blocked until the
  * operations are completed. If the operations are performed by CM0P, the
  * user's code on CM4 is not blocked and the user code's on CM0P is blocked
@@ -1383,7 +507,7 @@ cy_en_em_eeprom_status_t Cy_Em_EEPROM_Write(
  *
  * Erased values are all zeros.
  *
- * In the \ref section_em_eeprom_mode_simple the function just erases the
+ * In simple mode (see section 'Simple Mode' in README.md) the function just erases the
  * entire content of Em_EEPROM.
  *
  * When Simple Mode is disabled, the function first performs one write
@@ -1395,7 +519,7 @@ cy_en_em_eeprom_status_t Cy_Em_EEPROM_Write(
  * status is returned and no erase operation is executed.
  *
  * This function uses a buffer of the flash row size to perform the erase
- * operation. For the size of the row, refer to the specific PSoC device
+ * operation. For the size of the row, refer to the specific PSOC device
  * datasheet.
  *
  * This is a blocking function and it does not return until the erase
@@ -1418,7 +542,7 @@ cy_en_em_eeprom_status_t Cy_Em_EEPROM_Write(
  * nonblocking flash operations, relating to interrupts, power mode,
  * IPC usage, etc. Refer to the "Flash (Flash System Routine)" section of
  * the CAT1 Peripheral Driver Library (mtb-pdl-cat1) API Reference Manual.<br>
- * Also, refer to the \ref section_em_eeprom_miscellaneous section for
+ * Also, refer to the section 'Limitations and Restrictions' in README.md for
  * the different Em_EEPROM middleware restrictions and limitations.
  *
  * @param[in] context         Pointer to a em_eeprom object
@@ -1431,7 +555,7 @@ cy_en_em_eeprom_status_t Cy_Em_EEPROM_Erase(cy_stc_eeprom_context_t* context);
 
 /** Returns the number of the Em_EEPROM Writes completed so far.
  *
- * This function returns zero in the \ref section_em_eeprom_mode_simple since
+ * This function returns zero in simple mode (see section 'Simple Mode' in README.md) since
  * the number of writes is not available in this case.
  *
  * Use this function to monitor the flash memory endurance. The higher
@@ -1539,7 +663,7 @@ uint32_t Cy_Em_EEPROM_NumWrites(cy_stc_eeprom_context_t* context);
 #define CY_EM_EEPROM_FLASH_SIZEOF_ROW       \
     ((((CY_EM_EEPROM_MINIMUM_ROW_SIZE - 1) / CY_RRAM_BLOCK_SIZE_BYTES) + 1) * CY_RRAM_BLOCK_SIZE_BYTES)
 
-#else /* For PSoC 4/6 and all Flash based devices */
+#else /* For PSOC 4/6 and all Flash based devices */
 
 /** Defines the size of a flash row */
 #define CY_EM_EEPROM_FLASH_SIZEOF_ROW       (CY_FLASH_SIZEOF_ROW)
