@@ -105,9 +105,7 @@ extern "C" {
 #define CY_EM_EEPROM_MW_VERSION_MAJOR       (2)
 
 /** Library minor version */
-#define CY_EM_EEPROM_MW_VERSION_MINOR       (70)
-
-
+#define CY_EM_EEPROM_MW_VERSION_MINOR       (80)
 
 /*******************************************************************************
 * Data Structure definitions
@@ -430,7 +428,8 @@ cy_en_em_eeprom_status_t Cy_Em_EEPROM_Init(
  * EEPROM emulation. There are also multiple constraints for blocking and
  * nonblocking flash operations, relating to interrupts, power modes,
  * IPC usage, etc. Refer to the "Flash (Flash System Routine)" section of
- * the CAT1 Peripheral Driver Library (mtb-pdl-cat1) API Reference Manual.<br>
+ * the CAT1 Peripheral Driver Library (mtb-pdl-cat1) API Reference Manual or
+ * Device Support library documentation.<br>
  *
  * @param[in]       addr       The logical start address in the Em_EEPROM storage to start reading
  * data
@@ -481,7 +480,8 @@ cy_en_em_eeprom_status_t Cy_Em_EEPROM_Read(
  * EEPROM emulation. There are also multiple constraints for blocking and
  * nonblocking flash operations, relating to interrupts, Power modes,
  * IPC usage, etc. Refer to the "Flash (Flash System Routine)" section of
- * the CAT1 Peripheral Driver Library (mtb-pdl-cat1) API Reference Manual.<br>
+ * the CAT1 Peripheral Driver Library (mtb-pdl-cat1) API Reference Manual or
+ * Device Support library documentation.<br>
  *
  * @param[in] addr        The logical start address in the Em_EEPROM storage to start writing data
  * to.
@@ -541,7 +541,8 @@ cy_en_em_eeprom_status_t Cy_Em_EEPROM_Write(
  * EEPROM emulation. There are also multiple constraints for blocking and
  * nonblocking flash operations, relating to interrupts, power mode,
  * IPC usage, etc. Refer to the "Flash (Flash System Routine)" section of
- * the CAT1 Peripheral Driver Library (mtb-pdl-cat1) API Reference Manual.<br>
+ * the CAT1 Peripheral Driver Library (mtb-pdl-cat1) API Reference Manual or
+ * Device Support library documentation.<br>
  * Also, refer to the section 'Limitations and Restrictions' in README.md for
  * the different Em_EEPROM middleware restrictions and limitations.
  *

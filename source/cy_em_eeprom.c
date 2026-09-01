@@ -44,6 +44,26 @@
 #include "cy_em_eeprom.h"
 #include "cy_pdl.h"
 
+/* PSC3 and Traveo II, including T2G-B-H, lack the required HAL APIs. */
+/* This feature is not supported for older versions of HAL */
+#if (CPUSS_FLASHC_ECT == 1) && !defined(COMPONENT_TVII) && !defined(CY_USING_HAL) && \
+    !defined(CY_USING_HAL_LITE)
+    #if defined(MTB_HAL_API_AVAILABLE_NVM_IS_BLANK) && \
+    defined(MTB_HAL_API_AVAILABLE_NVM_IS_SECTOR_CORRUPT)
+    #define EM_EEPROM_HAL_ECC_CHECK_AVAILABLE   (1)
+    #else
+    #define EM_EEPROM_HAL_ECC_CHECK_AVAILABLE   (0)
+    #if !defined(CY_EM_EEPROM_DISABLE_PARTIALLY_ERASED_SECTOR_RECOVERY)
+    #warning \
+    "Partially erased sector recovery requires a HAL with mtb_hal_nvm_is_blank and mtb_hal_nvm_is_sector_corrupt. Update the HAL or define CY_EM_EEPROM_DISABLE_PARTIALLY_ERASED_SECTOR_RECOVERY."
+    #endif
+    #endif
+#else // if (CPUSS_FLASHC_ECT == 1) && !defined(COMPONENT_TVII) && !defined(CY_USING_HAL) &&
+// !defined(CY_USING_HAL_LITE)
+#define EM_EEPROM_HAL_ECC_CHECK_AVAILABLE       (0)
+#endif // if (CPUSS_FLASHC_ECT == 1) && !defined(COMPONENT_TVII) && !defined(CY_USING_HAL) &&
+// !defined(CY_USING_HAL_LITE)
+
 /*******************************************************************************
 * Global variables
 *******************************************************************************/
@@ -76,9 +96,11 @@ static cy_en_em_eeprom_status_t EraseRow(const uint32_t* rowAddr, const uint32_t
 static cy_en_em_eeprom_status_t EraseRowWrap(const uint32_t* rowAddr, const uint32_t* ramBuffAddr,
                                              const cy_stc_eeprom_context_t* context);
 static uint32_t CalculateRowChecksum(const uint32_t* ptrRow, uint32_t rowSize);
-static uint32_t GetStoredRowChecksum(const uint32_t* ptrRow);
-static cy_en_em_eeprom_status_t CheckRowChecksum(const uint32_t* ptrRow, uint32_t rowSize);
-static uint32_t GetStoredSeqNum(const uint32_t* ptrRow);
+static uint32_t GetStoredRowChecksum(const uint32_t* ptrRow,
+                                     const cy_stc_eeprom_context_t* context);
+static cy_en_em_eeprom_status_t CheckRowChecksum(const uint32_t* ptrRow, uint32_t rowSize,
+                                                 const cy_stc_eeprom_context_t* context);
+static uint32_t GetStoredSeqNum(const uint32_t* ptrRow, const cy_stc_eeprom_context_t* context);
 static cy_en_em_eeprom_status_t DefineLastWrittenRow(cy_stc_eeprom_context_t* context);
 static cy_en_em_eeprom_status_t CheckLastWrittenRowIntegrity(uint32_t* ptrSeqNum,
                                                              cy_stc_eeprom_context_t* context);
@@ -92,10 +114,15 @@ static uint32_t GetPhysicalSize(const cy_stc_eeprom_context_t* context,
                                 const cy_stc_eeprom_config2_t* config);
 static void ComputeEEPROMProgramSize(cy_stc_eeprom_context_t* context);
 
-#if (CPUSS_FLASHC_ECT == 1)
+#if (EM_EEPROM_HAL_ECC_CHECK_AVAILABLE)
+static mtb_hal_nvm_t* GetHalNvmObj(const cy_stc_eeprom_context_t* context);
+#endif
 static bool WorkFlashIsErased(
+    const cy_stc_eeprom_context_t* context,
     const uint32_t* addr,
     uint32_t size);
+#if !defined(CY_EM_EEPROM_DISABLE_PARTIALLY_ERASED_SECTOR_RECOVERY)
+static cy_en_em_eeprom_status_t RecoverPartiallyErasedSectors(cy_stc_eeprom_context_t* context);
 #endif
 /*******************************************************************************
 *       Functions
@@ -203,8 +230,16 @@ cy_en_em_eeprom_status_t Cy_Em_EEPROM_Init_BD(
             }
             context->blockingWrite = config->blockingWrite;
 
-            /* Initialize the Last written row */
-            (void)DefineLastWrittenRow(context);
+            #if !defined(CY_EM_EEPROM_DISABLE_PARTIALLY_ERASED_SECTOR_RECOVERY)
+            result = RecoverPartiallyErasedSectors(context);
+            #endif
+
+            /* Recovery must precede this scan because an interrupted erase can
+             * leave a row unsafe to read through the CPU bus. */
+            if (CY_EM_EEPROM_SUCCESS == result)
+            {
+                result = DefineLastWrittenRow(context);
+            }
         }
     }
 
@@ -270,8 +305,7 @@ static cy_en_em_eeprom_status_t ReadSimpleMode(
     const cy_stc_eeprom_context_t* context)
 {
     cy_en_em_eeprom_status_t result = CY_EM_EEPROM_SUCCESS;
-    #if (CPUSS_FLASHC_ECT == 1)
-    if (WorkFlashIsErased((uint32_t*)(context->userNvmStartAddr + addr), size))
+    if (WorkFlashIsErased(context, (uint32_t*)(context->userNvmStartAddr + addr), size))
     {
         /* Fills the RAM buffer with flash data for the case when not a whole row is requested to be
            overwritten */
@@ -279,7 +313,6 @@ static cy_en_em_eeprom_status_t ReadSimpleMode(
         result = CY_EM_EEPROM_SUCCESS;
     }
     else
-    #endif /* (CPUSS_FLASHC_ECT == 1) */
     {
         cy_rslt_t readResult = context->bd->read(context->bd->context,
                                                  (context->userNvmStartAddr + addr), size,
@@ -388,7 +421,7 @@ static cy_en_em_eeprom_status_t ReadExtendedMode(
         }
 
         retHistoricCrc = CY_EM_EEPROM_SUCCESS;
-        if (CY_EM_EEPROM_SUCCESS != CheckRowChecksum(ptrRow, context->rowSize))
+        if (CY_EM_EEPROM_SUCCESS != CheckRowChecksum(ptrRow, context->rowSize, context))
         {
             /* CRC is bad. Checks if the redundant copy if enabled */
             retHistoricCrc = CY_EM_EEPROM_BAD_CHECKSUM;
@@ -396,7 +429,7 @@ static cy_en_em_eeprom_status_t ReadExtendedMode(
             {
                 ptrRow += ((context->numberOfRows * context->wearLevelingFactor) *
                            (context->rowSize /4));
-                if (CY_EM_EEPROM_SUCCESS == CheckRowChecksum(ptrRow, (context->rowSize)))
+                if (CY_EM_EEPROM_SUCCESS == CheckRowChecksum(ptrRow, (context->rowSize), context))
                 {
                     retHistoricCrc = CY_EM_EEPROM_REDUNDANT_COPY_USED;
                 }
@@ -411,7 +444,8 @@ static cy_en_em_eeprom_status_t ReadExtendedMode(
         else
         {
             (void)memset((uint8_t*)userBufferAddr, 0, sizeToCopy);
-            if ((0u == GetStoredSeqNum(ptrRow)) && (0u == GetStoredRowChecksum(ptrRow)))
+            if ((0u ==
+                 GetStoredSeqNum(ptrRow, context)) && (0u == GetStoredRowChecksum(ptrRow, context)))
             {
                 /*
                  * Considers a row with a bad checksum as the row never that has never been
@@ -455,13 +489,13 @@ static cy_en_em_eeprom_status_t ReadExtendedMode(
         ptrRow = GetNextRowPointer(ptrRow, context);
         ptrRowWork = ptrRow;
         /* Checks CRC of the row to be read except the last row of a recently created header */
-        crcStatus = CheckRowChecksum(ptrRowWork, context->rowSize);
+        crcStatus = CheckRowChecksum(ptrRowWork, context->rowSize, context);
         if ((CY_EM_EEPROM_SUCCESS != crcStatus) && (0u != context->redundantCopy))
         {
             /* Calculates the redundant copy pointer */
             ptrRowWork += ((context->numberOfRows * context->wearLevelingFactor) *
                            context->rowSize / 4);
-            crcStatus = CheckRowChecksum(ptrRowWork, context->rowSize);
+            crcStatus = CheckRowChecksum(ptrRowWork, context->rowSize, context);
         }
 
         /* Skips the row if CRC is bad */
@@ -565,14 +599,12 @@ static cy_en_em_eeprom_status_t WriteSimpleMode(
 
     while (wrCnt < numWrites)
     {
-        #if (CPUSS_FLASHC_ECT == 1)
         /* Fills the RAM buffer with all 0s if the row has never been written before */
-        if (WorkFlashIsErased(ptrRow, context->secSize))
+        if (WorkFlashIsErased(context, ptrRow, context->secSize))
         {
             (void)memset((uint8_t*)&writeRamBuffer[0u], 0, context->secSize);
         }
         else
-        #endif /* (CPUSS_FLASHC_ECT == 1) */
         {
             /* Fills the RAM buffer with nvm data for the case when not a whole row is requested to
                be
@@ -1167,22 +1199,21 @@ static uint32_t CalculateRowChecksum(const uint32_t* ptrRow, uint32_t rowSize)
 * \param ptrRow
 * The pointer to a row.
 *
+* \param context
+* The pointer to the Em_EEPROM context structure \ref cy_stc_eeprom_context_t.
+*
 * \return
 * The stored row checksum.
 *
 *******************************************************************************/
-static uint32_t GetStoredRowChecksum(const uint32_t* ptrRow)
+static uint32_t GetStoredRowChecksum(const uint32_t* ptrRow, const cy_stc_eeprom_context_t* context)
 {
-    #if (CPUSS_FLASHC_ECT == 1)
     uint32_t ret = 0U;
-    if (!WorkFlashIsErased((uint32_t*)&ptrRow[CY_EM_EEPROM_HEADER_CHECKSUM_OFFSET_U32], 4))
+    if (!WorkFlashIsErased(context, (uint32_t*)&ptrRow[CY_EM_EEPROM_HEADER_CHECKSUM_OFFSET_U32], 4))
     {
         ret = ptrRow[CY_EM_EEPROM_HEADER_CHECKSUM_OFFSET_U32];
     }
     return (ret);
-    #else /* (CPUSS_FLASHC_ECT == 1) */
-    return (ptrRow[CY_EM_EEPROM_HEADER_CHECKSUM_OFFSET_U32]);
-    #endif /* (CPUSS_FLASHC_ECT == 1) */
 }
 
 
@@ -1198,17 +1229,20 @@ static uint32_t GetStoredRowChecksum(const uint32_t* ptrRow)
 * \param rowSize
 * The size of the row passed in.
 *
+* \param context
+* The pointer to the Em_EEPROM context structure \ref cy_stc_eeprom_context_t.
+*
 * \return
 * Returns the operation status. See cy_en_em_eeprom_status_t.
 *
 *******************************************************************************/
-static cy_en_em_eeprom_status_t CheckRowChecksum(const uint32_t* ptrRow, uint32_t rowSize)
+static cy_en_em_eeprom_status_t CheckRowChecksum(const uint32_t* ptrRow, uint32_t rowSize,
+                                                 const cy_stc_eeprom_context_t* context)
 {
     cy_en_em_eeprom_status_t result = CY_EM_EEPROM_BAD_CHECKSUM;
-    #if (CPUSS_FLASHC_ECT == 1)
     uint32_t lc_buf[CY_EM_EEPROM_MAXIMUM_ROW_SIZE / 4U];
 
-    if (WorkFlashIsErased((uint32_t*)ptrRow, rowSize))
+    if (WorkFlashIsErased(context, (uint32_t*)ptrRow, rowSize))
     {
         /* Fills the RAM buffer with flash data for the case when not a whole row is requested to be
            overwritten */
@@ -1218,17 +1252,10 @@ static cy_en_em_eeprom_status_t CheckRowChecksum(const uint32_t* ptrRow, uint32_
     {
         (void)memcpy((void*)lc_buf, (const void*)ptrRow, rowSize);
     }
-    if (GetStoredRowChecksum(ptrRow) == CalculateRowChecksum(lc_buf, rowSize))
+    if (GetStoredRowChecksum(ptrRow, context) == CalculateRowChecksum(lc_buf, rowSize))
     {
         result = CY_EM_EEPROM_SUCCESS;
     }
-
-    #else /* (CPUSS_FLASHC_ECT == 1) */
-    if (GetStoredRowChecksum(ptrRow) == CalculateRowChecksum(ptrRow, rowSize))
-    {
-        result = CY_EM_EEPROM_SUCCESS;
-    }
-    #endif /* (CPUSS_FLASHC_ECT == 1) */
     return (result);
 }
 
@@ -1244,22 +1271,21 @@ static cy_en_em_eeprom_status_t CheckRowChecksum(const uint32_t* ptrRow, uint32_
 * \param ptrRow
 * The pointer to a row.
 *
+* \param context
+* The pointer to the Em_EEPROM context structure \ref cy_stc_eeprom_context_t.
+*
 * \return
 * The stored sequence number.
 *
 *******************************************************************************/
-static uint32_t GetStoredSeqNum(const uint32_t* ptrRow)
+static uint32_t GetStoredSeqNum(const uint32_t* ptrRow, const cy_stc_eeprom_context_t* context)
 {
-    #if (CPUSS_FLASHC_ECT == 1)
     uint32_t ret = 0U;
-    if (!WorkFlashIsErased((uint32_t*)&ptrRow[CY_EM_EEPROM_HEADER_SEQ_NUM_OFFSET_U32], 4))
+    if (!WorkFlashIsErased(context, (uint32_t*)&ptrRow[CY_EM_EEPROM_HEADER_SEQ_NUM_OFFSET_U32], 4))
     {
         ret = ptrRow[CY_EM_EEPROM_HEADER_SEQ_NUM_OFFSET_U32];
     }
     return (ret);
-    #else /* (CPUSS_FLASHC_ECT == 1) */
-    return (ptrRow[CY_EM_EEPROM_HEADER_SEQ_NUM_OFFSET_U32]);
-    #endif /* (CPUSS_FLASHC_ECT == 1) */
 }
 
 
@@ -1299,11 +1325,11 @@ static cy_en_em_eeprom_status_t DefineLastWrittenRow(cy_stc_eeprom_context_t* co
 
         for (rowIndex = 0u; rowIndex < numRows; rowIndex++)
         {
-            seqNum = GetStoredSeqNum(ptrRow);
+            seqNum = GetStoredSeqNum(ptrRow, context);
             /* Is it a bigger number? */
             if (seqNum > seqNumMax)
             {
-                if (CY_EM_EEPROM_SUCCESS == CheckRowChecksum(ptrRow, context->rowSize))
+                if (CY_EM_EEPROM_SUCCESS == CheckRowChecksum(ptrRow, context->rowSize, context))
                 {
                     seqNumMax = seqNum;
                     ptrRowMax = ptrRow;
@@ -1318,11 +1344,11 @@ static cy_en_em_eeprom_status_t DefineLastWrittenRow(cy_stc_eeprom_context_t* co
         {
             for (rowIndex = 0u; rowIndex < numRows; rowIndex++)
             {
-                seqNum = GetStoredSeqNum(ptrRow);
+                seqNum = GetStoredSeqNum(ptrRow, context);
                 /* Is it a bigger number? */
                 if (seqNum > seqNumMax)
                 {
-                    if (CY_EM_EEPROM_SUCCESS == CheckRowChecksum(ptrRow, context->rowSize))
+                    if (CY_EM_EEPROM_SUCCESS == CheckRowChecksum(ptrRow, context->rowSize, context))
                     {
                         seqNumMax = seqNum;
                         ptrRowMax = ptrRow;
@@ -1379,9 +1405,10 @@ static cy_en_em_eeprom_status_t CheckLastWrittenRowIntegrity(
     if (0u == context->simpleMode)
     {
         /* Checks the row CRC */
-        if (CY_EM_EEPROM_SUCCESS == CheckRowChecksum(context->ptrLastWrittenRow, context->rowSize))
+        if (CY_EM_EEPROM_SUCCESS ==
+            CheckRowChecksum(context->ptrLastWrittenRow, context->rowSize, context))
         {
-            seqNum = GetStoredSeqNum(context->ptrLastWrittenRow);
+            seqNum = GetStoredSeqNum(context->ptrLastWrittenRow, context);
         }
         else
         {
@@ -1393,18 +1420,18 @@ static cy_en_em_eeprom_status_t CheckLastWrittenRowIntegrity(
                               (context->rowSize/4)) + context->ptrLastWrittenRow;
 
                 /* Checks CRC of the redundant copy */
-                if (CY_EM_EEPROM_SUCCESS == CheckRowChecksum(ptrRowCopy, context->rowSize))
+                if (CY_EM_EEPROM_SUCCESS == CheckRowChecksum(ptrRowCopy, context->rowSize, context))
                 {
-                    seqNum = GetStoredSeqNum(ptrRowCopy);
+                    seqNum = GetStoredSeqNum(ptrRowCopy, context);
                     result = CY_EM_EEPROM_REDUNDANT_COPY_USED;
                 }
                 else
                 {
                     (void)DefineLastWrittenRow(context);
                     if (CY_EM_EEPROM_SUCCESS ==
-                        CheckRowChecksum(context->ptrLastWrittenRow, context->rowSize))
+                        CheckRowChecksum(context->ptrLastWrittenRow, context->rowSize, context))
                     {
-                        seqNum = GetStoredSeqNum(context->ptrLastWrittenRow);
+                        seqNum = GetStoredSeqNum(context->ptrLastWrittenRow, context);
                     }
                     result = CY_EM_EEPROM_BAD_CHECKSUM;
                 }
@@ -1413,9 +1440,9 @@ static cy_en_em_eeprom_status_t CheckLastWrittenRowIntegrity(
             {
                 (void)DefineLastWrittenRow(context);
                 if (CY_EM_EEPROM_SUCCESS == CheckRowChecksum(context->ptrLastWrittenRow,
-                                                             context->rowSize))
+                                                             context->rowSize, context))
                 {
-                    seqNum = GetStoredSeqNum(context->ptrLastWrittenRow);
+                    seqNum = GetStoredSeqNum(context->ptrLastWrittenRow, context);
                 }
                 result = CY_EM_EEPROM_BAD_CHECKSUM;
             }
@@ -1542,7 +1569,7 @@ static cy_en_em_eeprom_status_t CopyHistoricData(
     uint32_t historicDataOffsetU32 = ((context->rowSize /4) /2);
     const uint32_t* ptrRowRead = GetReadRowPointer(ptrRow, context);
 
-    if (CY_EM_EEPROM_SUCCESS == CheckRowChecksum(ptrRowRead, context->rowSize))
+    if (CY_EM_EEPROM_SUCCESS == CheckRowChecksum(ptrRowRead, context->rowSize, context))
     {
         readResult = context->bd->read(context->bd->context,
                                        (uint32_t)&ptrRowRead[historicDataOffsetU32],
@@ -1557,7 +1584,7 @@ static cy_en_em_eeprom_status_t CopyHistoricData(
         {
             ptrRowRead += ((context->numberOfRows * context->wearLevelingFactor) *
                            (context->rowSize/4));
-            if (CY_EM_EEPROM_SUCCESS == CheckRowChecksum(ptrRowRead, context->rowSize))
+            if (CY_EM_EEPROM_SUCCESS == CheckRowChecksum(ptrRowRead, context->rowSize, context))
             {
                 /* Copies the Em_EEPROM historic data from the redundant copy */
                 readResult = context->bd->read(context->bd->context,
@@ -1570,8 +1597,8 @@ static cy_en_em_eeprom_status_t CopyHistoricData(
                      CY_RSLT_SUCCESS) ? CY_EM_EEPROM_REDUNDANT_COPY_USED : CY_EM_EEPROM_BAD_DATA;
             }
         }
-        if ((0 == GetStoredSeqNum(ptrRowRead)) &&
-            (0 == GetStoredRowChecksum(ptrRowRead)))
+        if ((0 == GetStoredSeqNum(ptrRowRead, context)) &&
+            (0 == GetStoredRowChecksum(ptrRowRead, context)))
         {
             /*
              * Considers a row with a bad checksum as the row that never has never been
@@ -1626,9 +1653,9 @@ static cy_en_em_eeprom_status_t CopyHeadersData(
     bool readingRam = false;
 
     /* Skips unwritten rows if any */
-    if (numReads > GetStoredSeqNum(ptrRowWrite))
+    if (numReads > GetStoredSeqNum(ptrRowWrite, context))
     {
-        numReads = GetStoredSeqNum(ptrRowWrite);
+        numReads = GetStoredSeqNum(ptrRowWrite, context);
         /* Only the first N rows have been written so far, only read up to the
             current row starting from the first row*/
         ptrRowRead = (uint32_t*)context->userNvmStartAddr;
@@ -1668,13 +1695,13 @@ static cy_en_em_eeprom_status_t CopyHeadersData(
             {
                 /* Checks CRC of the row to be read except the last row of a recently created header
                  */
-                crcStatus = CheckRowChecksum(ptrRowWork, context->rowSize);
+                crcStatus = CheckRowChecksum(ptrRowWork, context->rowSize, context);
                 if ((CY_EM_EEPROM_SUCCESS != crcStatus) && (0u != context->redundantCopy))
                 {
                     /* Calculates the redundant copy pointer */
                     ptrRowWork += ((context->numberOfRows * context->wearLevelingFactor) *
                                    (context->rowSize/4));
-                    crcStatus = CheckRowChecksum(ptrRowWork, context->rowSize);
+                    crcStatus = CheckRowChecksum(ptrRowWork, context->rowSize, context);
                 }
             }
 
@@ -1805,35 +1832,142 @@ static void ComputeEEPROMProgramSize(cy_stc_eeprom_context_t* context)
 }
 
 
-#if (CPUSS_FLASHC_ECT == 1)
+#if (EM_EEPROM_HAL_ECC_CHECK_AVAILABLE)
+/*******************************************************************************
+* Function Name: GetHalNvmObj
+*******************************************************************************/
+static mtb_hal_nvm_t* GetHalNvmObj(const cy_stc_eeprom_context_t* context)
+{
+    /* Valid because Cy_Em_EEPROM_Init creates bd via mtb_block_storage_nvm_create,
+     * which stores the mtb_hal_nvm_t* handle as bd->context. */
+    return (mtb_hal_nvm_t*)context->bd->context;
+}
+
+
+#endif /* (EM_EEPROM_HAL_ECC_CHECK_AVAILABLE) */
+
+
 /*******************************************************************************
 * Function Name: WorkFlashIsErased
 ****************************************************************************//**
 *
-* Checks if XMC7xxx Work Flash is Blank/Erased state
+* Checks if the specified flash region is blank/erased.
+*
+* \param context
+* The pointer to the Em_EEPROM context structure.
 *
 * \param addr
-* The pointer to the Work Flash starting address to check for blank
+* The pointer to the starting address to check for blank.
 *
 * \param size
-* The size of the Work Flash to check from address passed
-*
+* The size in bytes to check from the address passed.
 *
 *******************************************************************************/
-static bool WorkFlashIsErased(const uint32_t* addr, uint32_t size)
+static bool WorkFlashIsErased(const cy_stc_eeprom_context_t* context, const uint32_t* addr,
+                              uint32_t size)
 {
-    cy_stc_flash_blankcheck_config_t config;
-    cy_en_flashdrv_status_t status;
+    bool isErased;
 
-    config.addrToBeChecked = addr;
-    config.numOfWordsToBeChecked = size / 4U;
+    #if (EM_EEPROM_HAL_ECC_CHECK_AVAILABLE)
+    isErased = mtb_hal_nvm_is_blank(GetHalNvmObj(context), (uint32_t)addr, size);
+    #else
+    /* Erased memory reads back as the erase value without any bus fault, so the callers'
+     * read path already yields what the blank path would have produced. */
+    (void)context;
+    (void)addr;
+    (void)size;
+    isErased = false;
+    #endif /* (EM_EEPROM_HAL_ECC_CHECK_AVAILABLE) */
 
-    status = Cy_Flash_BlankCheck(&config, CY_FLASH_DRIVER_BLOCKING);
-
-    return (status == CY_FLASH_DRV_SUCCESS);
+    return isErased;
 }
 
 
-#endif /* (CPUSS_FLASHC_ECT == 1) */
+#if !defined(CY_EM_EEPROM_DISABLE_PARTIALLY_ERASED_SECTOR_RECOVERY)
+/*******************************************************************************
+* Function Name: RecoverPartiallyErasedSectors
+****************************************************************************//**
+*
+* Scans all NVM sectors at init and erases any that contain ECC or CRC errors
+* left by an interrupted erase or write.
+*
+* \param context
+* The pointer to the Em_EEPROM context structure \ref cy_stc_eeprom_context_t.
+*
+* \return
+* Returns the operation status. See cy_en_em_eeprom_status_t.
+*
+*******************************************************************************/
+static cy_en_em_eeprom_status_t RecoverPartiallyErasedSectors(cy_stc_eeprom_context_t* context)
+{
+    cy_en_em_eeprom_status_t result = CY_EM_EEPROM_SUCCESS;
+
+    #if (EM_EEPROM_HAL_ECC_CHECK_AVAILABLE)
+    /* Covers primary + redundant copy regions. */
+    uint32_t storageSize = context->numberOfRows * context->wearLevelingFactor *
+                           context->rowSize * (context->redundantCopy + 1u);
+    uint32_t numSectors = (storageSize + context->secSize - 1u) / context->secSize;
+    const uint32_t* pSec = (const uint32_t*)context->userNvmStartAddr;
+    uint32_t i;
+
+    for (i = 0u; i < numSectors; i++)
+    {
+        bool hasError = false;
+
+        /* mtb_hal_nvm_is_sector_corrupt shares FAULT_STRUCT0 with app fault handling;
+         * caller must serialize with a critical section per the HAL contract. */
+        uint32_t intrState = Cy_SysLib_EnterCriticalSection();
+        hasError = mtb_hal_nvm_is_sector_corrupt(GetHalNvmObj(context), (uint32_t)pSec,
+                                                 context->secSize);
+        Cy_SysLib_ExitCriticalSection(intrState);
+
+        #if defined(CY_IP_M4CPUSS)
+        /* Layer 2 CRC safety net; retained pending confirmation of full HAL coverage. */
+        if (!hasError && (0u == context->simpleMode))
+        {
+            const uint32_t* pRow = pSec;
+            uint32_t numRowsInSec = context->secSize / context->rowSize;
+            uint32_t r;
+            for (r = 0u; r < numRowsInSec; r++)
+            {
+                /* Skip blank rows (seq==0, checksum==0 means never written). */
+                if ((GetStoredSeqNum(pRow, context) != 0u) ||
+                    (GetStoredRowChecksum(pRow, context) != 0u))
+                {
+                    if (CY_EM_EEPROM_SUCCESS != CheckRowChecksum(pRow, context->rowSize, context))
+                    {
+                        hasError = true;
+                        break;
+                    }
+                }
+                pRow += context->rowSize / 4U;
+            }
+        }
+        #endif /* defined(CY_IP_M4CPUSS) */
+
+        if (hasError)
+        {
+            cy_rslt_t eraseRslt = context->bd->erase(context->bd->context, (uint32_t)pSec,
+                                                     context->secSize);
+            if (CY_EM_EEPROM_SUCCESS == result)
+            {
+                result = (eraseRslt == CY_RSLT_SUCCESS) ? CY_EM_EEPROM_SUCCESS
+                                                        : CY_EM_EEPROM_WRITE_FAIL;
+            }
+        }
+
+        pSec = (const uint32_t*)((uint32_t)pSec + context->secSize);
+    }
+    #else // if (EM_EEPROM_HAL_ECC_CHECK_AVAILABLE)
+    /* Without ECC there is no corruption to detect, so there is nothing to recover. */
+    (void)context;
+    #endif /* (EM_EEPROM_HAL_ECC_CHECK_AVAILABLE) */
+
+    return result;
+}
+
+
+#endif /* !defined(CY_EM_EEPROM_DISABLE_PARTIALLY_ERASED_SECTOR_RECOVERY) */
+
 
 /* [] END OF FILE */

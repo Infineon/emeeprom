@@ -1,5 +1,10 @@
 var searchData=
 [
-  ['userflashstartaddr_0',['userFlashStartAddr',['../group__group__emeeprom.html#a686ebc626fadcdce3ffc40406f707f49',1,'cy_stc_eeprom_config_t']]],
-  ['usernvmstartaddr_1',['userNvmStartAddr',['../group__group__emeeprom.html#a293c254f31fe0bd80b801c82819de60f',1,'cy_stc_eeprom_config2_t::userNvmStartAddr()'],['../group__group__emeeprom.html#aa5a0697020826e5401a694f2c6ec811e',1,'cy_stc_eeprom_context_t::userNvmStartAddr()']]]
+  ['leveling_0',['Wear Leveling',['../index.html#autotoc_md18',1,'']]],
+  ['leveling_20for_20modustoolbox_1',['Emulated EEPROM Library - Non-Volatile Storage with Wear Leveling for ModusToolbox',['../index.html',1,'']]],
+  ['library_2',['Em_EEPROM Middleware Library',['../group__group__emeeprom.html',1,'']]],
+  ['library_20non_20volatile_20storage_20with_20wear_20leveling_20for_20modustoolbox_3',['Emulated EEPROM Library - Non-Volatile Storage with Wear Leveling for ModusToolbox',['../index.html',1,'']]],
+  ['license_4',['License',['../index.html#autotoc_md36',1,'']]],
+  ['limitations_20and_20restrictions_5',['Limitations and Restrictions',['../index.html#autotoc_md30',1,'']]],
+  ['location_20and_20size_6',['Storage Variable Location and Size',['../index.html#autotoc_md22',1,'']]]
 ];

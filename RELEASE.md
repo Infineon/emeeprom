@@ -3,7 +3,11 @@
 ### What's Included?
 Please refer to the [README.md](./README.md) and the [API Reference Guide](https://infineon.github.io/emeeprom/html/index.html) for a complete description of the Emulated EEPROM Middleware.
 The revision history of the Emulated EEPROM Middleware is also available on the [API Reference Guide Changelog](https://github.com/Infineon/emeeprom/blob/master/RELEASE.md).
+
 ### What Changed?
+Release version v2.80.0:
+* Added at-init corrupt-sector recovery
+
 Release version v2.70.1:
 * Documentation update
 
@@ -45,33 +49,9 @@ Release version v2.0:
 * Added mechanism to restore corrupted redundant copy from the main data copy
 
 ### Defect Fixes
-* Fixed MISRA Violation
-* Fixed defect of the Cy_Em_EEPROM_Read() function when Emulated EEPROM data corruption in some cases caused infinite loop.
-* Fixed defect of the Cy_Em_EEPROM_Read() function when the function returns incorrect data after restoring data from redundant copy.
+* Fixed: on supported eCT-flash devices (XMC7xxx, XMC5xxx), a power failure during sector erase could leave the sector in a partially-erased state with NC-ECC errors, causing bus faults on the next CPU read. The middleware now detects and erases such sectors at init time.
 
-
-### Supported Software and Tools
-This version of the Emulated EEPROM Library was validated for compatibility with the following Software and Tools:
-
-| Software and Tools                                      | Version |
-| :---                                                    | :----:  |
-| ModusToolbox Software Environment                       | 3.1     |
-| GCC Compiler                                            | 11.3.1  |
-| IAR Compiler                                            | 9.40.2  |
-| ARM Compiler 6                                          | 6.16    |
-
-### More information
-For more information, refer to the following documents:
-* [Emulated EEPROM Middleware README.md](./README.md)
-* [Emulated EEPROM Middleware API Reference Guide](https://infineon.github.io/emeeprom/em_eeprom_api_reference_manual/html/index.html)
-* [ModusToolbox Software Environment, Quick Start Guide, Documentation, and Videos](https://www.infineon.com/cms/en/design-support/tools/sdk/modustoolbox-software/)
-* [CAT1 PDL API Reference](https://infineon.github.io/mtb-pdl-cat1/pdl_api_reference_manual/html/index.html)
-* [CAT2 PDL API Reference](https://infineon.github.io/mtb-pdl-cat2/pdl_api_reference_manual/html/index.html)
-* [AN219434 Importing PSoC Creator Code into an IDE for a PSoC 6 Project](https://www.cypress.com/an219434)
-* [AN210781 Getting Started with PSoC 6 MCU with Bluetooth Low Energy (BLE) Connectivity](http://www.cypress.com/an210781)
-* [PSoC 6 Technical Reference Manual](https://www.cypress.com/documentation/technical-reference-manuals/psoc-6-mcu-psoc-63-ble-architecture-technical-reference)
-* [PSoC 63 with BLE Datasheet Programmable System-on-Chip datasheet](http://www.cypress.com/ds218787)
 
 ---
-(c) 2019-2025, Infineon Technologies AG, or an affiliate of Infineon
+(c) 2019-2026, Infineon Technologies AG, or an affiliate of Infineon
 Technologies AG.  All rights reserved.

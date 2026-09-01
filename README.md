@@ -13,7 +13,7 @@ and the ability to restore corrupted data from a redundant copy.
 * Optional Wear Leveling - distributes writes evenly to extend flash endurance (factor 1-10)
 * Optional Redundant Data Storage - maintains a backup copy with checksum validation for data recovery
 * Supports any block-storage-compatible memory, including internal NVM and external flash (e.g. via QSPI)
-* Resilient to power failures
+* Resilient to power failures — automatically detects and erases NVM sectors left in a partially-erased state at startup on supported eCT-flash devices (XMC7xxx, XMC5xxx); requires an up-to-date HAL (see [HAL Requirements](#hal-requirements))
 
 ## When to Use
 Use the Emulated EEPROM middleware when your application needs to:
@@ -28,9 +28,10 @@ Use the Emulated EEPROM middleware when your application needs to:
 
 Do **not** use this middleware when the application requires large-scale file storage or a filesystem — consider a dedicated flash file system instead, such as [emFile](https://github.com/Infineon/emfile) or [littlefs](https://github.com/Infineon/mtb-littlefs), both available as ModusToolbox middleware.
 
+\anchor how-to-use
 ## How to Use
 
-The steps below describe the most common setup: Em_EEPROM data placed in the application flash with wear leveling enabled. For other storage locations (auxiliary flash, fixed address, Work Flash on XMC7xxx/T2G-B-H), refer to the API Reference.
+The steps below describe the most common setup: Em_EEPROM data placed in the application flash with wear leveling enabled. For other storage locations (auxiliary flash, fixed address, Work Flash on XMC7xxx/XMC5xxx/T2G-B-H), refer to the API Reference Guide or device-specific documentation.
 
 **Step 1 - Open or create an application.**
 Open an existing ModusToolbox application or create a new one into which you want to add Em_EEPROM
@@ -63,6 +64,17 @@ Alternatively, add `emeeprom` as a dependency in your `deps/` folder.
 /* The Blocking Write is turned on */
 #define BLOCKING_WRITE   (1u)
 ```
+
+| Macro | Values | Effect |
+|-------|--------|--------|
+| `DATA_SIZE` | any (bytes) | User-visible EEPROM size; here one flash row (minimum granularity) |
+| `SIMPLE_MODE` | `0` / `1` | `0` stores checksums, headers, write counters; `1` writes raw data with no overhead |
+| `WEAR_LEVELING` | 1–10 | Multiplies flash endurance by distributing writes; `1` = no wear leveling |
+| `REDUNDANT_COPY` | `0` / `1` | `1` maintains a backup copy with checksum validation for automatic data recovery |
+| `BLOCKING_WRITE` | `0` / `1` | `1` busy-waits with interrupts disabled; `0` polls for completion with interrupts enabled |
+
+**Note:** When `BLOCKING_WRITE` is `0`, interrupts must remain enabled for the duration of `Cy_Em_EEPROM_Write()` and `Cy_Em_EEPROM_Erase()` — disabling them will stall the operation indefinitely.
+
 Refer to the `cy_stc_eeprom_config2_t` structure for details of all configuration options.
 
 **Step 5 - Declare the Em_EEPROM storage array in NVM.**
@@ -71,6 +83,8 @@ CY_ALIGN(CY_EM_EEPROM_FLASH_SIZEOF_ROW)
 const uint8_t emEepromStorage[CY_EM_EEPROM_GET_PHYSICAL_SIZE(DATA_SIZE, SIMPLE_MODE,
                                           WEAR_LEVELING, REDUNDANT_COPY)] = {0u};
 ```
+`CY_EM_EEPROM_GET_PHYSICAL_SIZE` is a library-provided macro that computes the required array size in bytes from the configuration parameters (not a user-defined value); `CY_EM_EEPROM_FLASH_SIZEOF_ROW` is a device-specific constant defined by the PDL representing the flash row size in bytes on the target device.
+
 The array must be zero-initialized and aligned to `CY_EM_EEPROM_FLASH_SIZEOF_ROW`.
 
 **Step 6 - Allocate the Em_EEPROM context structure.**
@@ -124,6 +138,31 @@ if (CY_RSLT_SUCCESS == mtb_block_storage_cat2_create(&my_bsd))
 The init function stores the configuration and current state of EEPROM storage in the context.
 It is used and updated by all subsequent API calls.
 
+**Note:** `Cy_Em_EEPROM_Init_BD()` performs an NVM sector scan on every startup on supported eCT-flash devices (XMC7xxx, XMC5xxx). On first boot after a power failure during an erase, this scan erases any partially-erased sectors before returning; typical boot time is unaffected when no corruption is found. On all other devices the scan is compiled out and no recovery is performed.
+
+**Note:** To disable partially-erased sector recovery, define `CY_EM_EEPROM_DISABLE_PARTIALLY_ERASED_SECTOR_RECOVERY` in the application build settings before compiling the Em_EEPROM middleware. Disabling recovery can leave sectors with ECC errors after an interrupted erase.
+
+**Note:** On the affected eCT-flash devices this feature depends on HAL APIs that are not present in older HAL releases. See [HAL Requirements](#hal-requirements) below before upgrading to this version of the middleware.
+
+\anchor hal-requirements
+### HAL Requirements
+
+On eCT-flash devices (XMC7xxx, XMC5xxx) the Em_EEPROM middleware calls two HAL NVM APIs that were introduced in a recent HAL release:
+
+| API | Used by |
+|-----|---------|
+| `mtb_hal_nvm_is_blank()` | Blank-region detection in the read, write, and checksum paths |
+| `mtb_hal_nvm_is_sector_corrupt()` | Partially-erased sector recovery in `Cy_Em_EEPROM_Init_BD()` |
+
+If the project uses a HAL that does not provide these functions, partially-erased sector recovery is not available. Depending on the Em_EEPROM release, the build either fails with undeclared or unresolved symbols, or the feature is compiled out and the compiler reports a warning. There is no run-time fallback in either case.
+
+Choose one of the following:
+
+1. **Update the HAL** (recommended). This is the only option that keeps partially-erased sector recovery available.
+2. **Stay on the previous Em_EEPROM version.** If the HAL cannot be updated, pin the middleware to the last release that did not require these functions. Recovery from interrupted erases is then unavailable.
+
+Defining `CY_EM_EEPROM_DISABLE_PARTIALLY_ERASED_SECTOR_RECOVERY` is **not** a workaround for an outdated HAL: the middleware also calls `mtb_hal_nvm_is_blank()` outside the recovery path, so the build is unaffected by that macro.
+
 **Note:** The example code uses `printf()` for diagnostic output, which requires the
 [retarget-io](https://github.com/Infineon/retarget-io) middleware. Either start from a
 ModusToolbox project that already includes retarget-io (for example, the **Hello World**
@@ -168,11 +207,11 @@ the `printf()` calls in the example above are executed because every API call re
 Em_EEPROM <init|write|read|erase> failed: 0x<status code>
 ```
 
-For full API documentation and data structure documentation, see the API reference ([Emulated EEPROM Middleware API Reference Guide](https://infineon.github.io/emeeprom/html/index.html)).
-
 ---
 
 ## Flash Sector Mapping
+
+Flash sector mapping determines which physical flash sector the CPU boots from and how sectors appear in the logical address space; this matters for Em_EEPROM because the `userNvmStartAddr` field must always reflect the current logical address of the storage after any mapping change.
 
 Many Infineon MCUs divide their internal flash into multiple physical sectors (or banks).
 The mechanism that controls which physical sector the CPU boots from and how sectors appear
@@ -236,6 +275,7 @@ Flash sector mapping affects Em_EEPROM usage in three ways:
 
 ---
 
+\anchor bank-switch
 ## Bank Switch
 
 Certain devices allow the on-board flash to be used in single bank or in dual bank modes.
@@ -318,11 +358,11 @@ For how to enable the Em_EEPROM middleware to write/read Em_EEPROM data, refer t
 
 ---
 
-## XMC7xxx and T2G-B-H Storage Restrictions
+## XMC7xxx, XMC5xxx, and T2G-B-H Storage Restrictions
 
-XMC7xxx and T2G-B-H based devices support Em_EEPROM data only in "Work Flash". The "Work Flash"
-provides sectors with two sizes: Large (2 kbytes) and Small (128 bytes). Specify the start address
-in the configuration structure to select which Work Flash region will be used.
+XMC7xxx, XMC5xxx, and T2G-B-H based devices all use eCT Flash, which has separate Code Flash and Work Flash regions. Em_EEPROM data must be placed in Work Flash (a dedicated flash region separate from the main code flash) on all three families. Code Flash sectors on these devices are 32 KB — too large for run-time EEPROM emulation — so Work Flash must be used instead. Work Flash provides sectors with two sizes: Large (2 kbytes) and Small (128 bytes). Specify the start address in the configuration structure to select which Work Flash region will be used.
+
+**Note:** Non-blocking write mode (`blockingWrite = 0`) is not supported on XMC5xxx devices; the blocking write is used regardless of the `blockingWrite` setting.
 
 ---
 
@@ -356,6 +396,8 @@ When `simpleMode` is enabled (1), no service data (checksums, headers, write cou
 Data is written directly to the specified address. The storage size equals `eepromSize` rounded up
 to a full row (`CY_EM_EEPROM_FLASH_SIZEOF_ROW`). Wear leveling and redundant copy are ignored in
 this mode.
+
+**Note:** Blank (never-written) regions return the erase value reported by the underlying storage.
 
 #### Non-Blocking Operation (Interrupts Enabled, API Still Blocks Until Completion)
 
@@ -567,6 +609,17 @@ in the configuration structure.
   contain new data while remaining rows retain old data. Em_EEPROM cannot detect this condition
   because the row checksum of the first row is valid.
 
+* On first boot after a power failure that interrupted an erase on a supported eCT-flash device
+  (XMC7xxx, XMC5xxx), `Cy_Em_EEPROM_Init_BD()` erases all affected sectors
+  before returning. Any data in those sectors is lost — this is the expected recovery behavior.
+  It is not possible to distinguish a partially-erased sector from an intentionally erased one.
+
+* Corrupt-sector recovery is not available on PSC3 or Traveo II devices, including T2G-B-H.
+
+* Corrupt-sector recovery requires a HAL providing `mtb_hal_nvm_is_blank()` and
+  `mtb_hal_nvm_is_sector_corrupt()`. With an older HAL the feature is unavailable on
+  eCT-flash devices; see [HAL Requirements](#hal-requirements).
+
 ---
 
 ## MISRA-C 2012 Compliance
@@ -584,18 +637,18 @@ The Cy_Em_EEPROM library's specific deviations:
 ---
 
 ## More Information
-* [Emulated EEPROM Middleware API Reference Guide](https://infineon.github.io/emeeprom/html/index.html)
+* [Emulated EEPROM Middleware Reference Guide](https://infineon.github.io/emeeprom/html/index.html)
 * [Block Storage Library](https://github.com/Infineon/block-storage)
 * [Infineon GitHub](https://github.com/infineon)
 * [ModusToolbox Software Environment](https://www.infineon.com/cms/en/design-support/tools/sdk/modustoolbox-software/)
 
 
 ## Release Notes and Changelog
-- **<a href="../../RELEASE.md">RELEASE.md</a>** - Detailed release notes for all versions
+- **<a href="RELEASE.md">RELEASE.md</a>** - Detailed release notes for all versions
 
 ## License
-This software is governed by the Infineon End User License Agreement. You may use this Software only as permitted under that agreement. Redistribution, modification, or use outside of those terms requires the express written permission of Infineon Technologies AG.
-- **<a href="../../LICENSE">LICENSE</a>** - Infineon End User License Agreement (EULA)
+This software is governed by the Infineon End User License Agreement (EULA). You may use this Software only as permitted under that agreement. Redistribution, modification, or use outside of those terms requires the express written permission of Infineon Technologies AG.
+- **<a href="LICENSE">LICENSE</a>** - Infineon End User License Agreement (EULA)
 
 ---
 
